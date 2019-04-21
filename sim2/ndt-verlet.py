@@ -120,7 +120,7 @@ for n in range(0,nsteps):
         v[p]=u[p]+dt[p]*f[p]/(2*m[p])
         rnew=r[p]    #r(i)
         KE_V[p]=0.5*m[p]*v[p]*v[p]
-        KE_U[p]=0.5*m[p]*v[p]*v[p]
+        KE_U[p]=0.5*m[p]*u[p]*u[p]
         PE_R[p]=0.5*m[p]*r[p]*r[p]
         omega_dt[p]=((k[p]/m[p])**(0.5))*(dt[p])
 
@@ -156,9 +156,9 @@ for n in range(0,nsteps):
             box.atoms[p].dt=dt[p]
             box.atoms[p].id=p
             box.atoms[p].KE_PE_V_SUM=KE_PE_V_SUM[p]
-            box.atoms[p].KE_PE_U_SUM=KE_PE_V_SUM[p]
+            box.atoms[p].KE_PE_U_SUM=KE_PE_U_SUM[p]
             box.atoms[p].KE_PE_V_AVG=KE_PE_V_AVG[p]
-            box.atoms[p].KE_PE_U_AVG=KE_PE_V_AVG[p]
+            box.atoms[p].KE_PE_U_AVG=KE_PE_U_AVG[p]
             box.atoms[p].ncycle=ncycle[p]
             box.atoms[p].freq=freq[p]
             box.atoms[p].omega_dt=omega_dt[p]
