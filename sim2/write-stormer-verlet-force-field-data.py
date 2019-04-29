@@ -60,13 +60,13 @@ box=Box()
 random.seed(datetime.now())
 
 l=20
-natoms=1
+natoms=5
 nsteps=1000
 
-#rx0=[i+x for i,x in enumerate(sorted(random.sample(range(1,l-1), natoms)))]
-#ry0=[i+x for i,x in enumerate(sorted(random.sample(range(1,l-1), natoms)))]
-rx0=[5]*natoms
-ry0=[5]*natoms
+rx0=[i+x for i,x in enumerate(sorted(random.sample(range(1,l-1), natoms)))]
+ry0=[i+x for i,x in enumerate(sorted(random.sample(range(1,l-1), natoms)))]
+#rx0=[5]*natoms
+#ry0=[5]*natoms
 vx0=[2]*natoms
 vy0=[3]*natoms
 
@@ -84,9 +84,6 @@ def potential_lennard_jones(theta):
     return uLJ
 
 def force_field(xi,nu):
-    e0=1
-    r0=1
-
     fx_left_boundary=12*((1/xi)**13-(1/xi)**7)
     fx_right_boundary=-12*((1/(l-xi))**13-(1/(l-xi))**7)
     fx=fx_left_boundary+fx_right_boundary
@@ -119,7 +116,7 @@ u_wall_sum=0
 u_lj_sum=0
 
 box.atoms.resize(natoms)
-file=TFile("test/particle_box_rx{}_ry{}_vx{}_vy{}.root".format(rx0[0],ry0[0],vx0[0],vy0[0]), "recreate" );
+file=TFile("test/particle_box_rx{}_ry{}_vx{}_vy{}_multiparticle.root".format(rx0[0],ry0[0],vx0[0],vy0[0]), "recreate" );
 tree=TTree("time-sequence", "particle object storage")
 tree.Branch('box',box)
 
@@ -213,8 +210,8 @@ for n in range(0,nsteps):
             box.atoms[p].ke_avg.push_back(ke_sum/natoms)
             box.atoms[p].u_wall_avg.push_back(u_wall_sum/natoms) #potential energy per particle
             box.atoms[p].u_lj_avg.push_back(u_lj_sum/natoms)
-            total_energy=u_wall_sum/natoms+u_lj_sum/natoms+ke_sum/natoms
-            box.atoms[p].total_energy_avg.push_back(total_energy)
+            total_energy_avg=u_wall_sum/natoms+u_lj_sum/natoms+ke_sum/natoms
+            box.atoms[p].total_energy_avg.push_back(total_energy_avg)
             '''
             for p in range(0,natoms):
                 for j in range(p,natoms):
