@@ -133,7 +133,7 @@ legend.AddEntry("g3","#Omega_0 dt={:.2e}".format(tree.box.atoms[20].omega_dt),"l
 legend.AddEntry("g4","#Omega_0 dt={:.2e}".format(tree.box.atoms[30].omega_dt),"l")
 
 gStyle.SetOptStat(0)
-#gStyle.SetOptTitle(0);
+#gStyle.SetOptTitle(0)
 gStyle.SetPalette(kRainBow);
 #gROOT.SetStyle("ATLAS");
 
