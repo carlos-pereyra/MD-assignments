@@ -5,12 +5,11 @@
 """
 
 import numpy as np
+from numpy import random
 import ROOT
 from ROOT import TTree,TFile,gROOT
 from ROOT import TCanvas,TGraph,TPad,TBrowser
-import random
 from datetime import datetime
-import numpy
 
 gROOT.ProcessLine(
 "struct position {\
@@ -57,20 +56,36 @@ from ROOT import Box
 from ROOT import Particle
 
 box=Box()
-random.seed(datetime.now())
+random.seed(1) #datetime.now()
 
-l=20
-natoms=5
+l=40
+natoms=6
 nsteps=1000
 
-rx0=[i+x for i,x in enumerate(sorted(random.sample(range(1,l-1), natoms)))]
-ry0=[i+x for i,x in enumerate(sorted(random.sample(range(1,l-1), natoms)))]
-#rx0=[5]*natoms
-#ry0=[5]*natoms
+# * STEP0:
+# *     Initial Conditions
+# *
+rx0=[0]*natoms
+ry0=[0]*natoms
+i=0
+while rx0[natoms-1]==0 and ry0[natoms-1]==0:
+    rx0[i]=random.randint(1,l)
+    ry0[i]=random.randint(1,l)
+    #print("x: {} y: {} index: {}".format(rx0[i],ry0[i],i))
+    for j in range(0,len(rx0)): #without replacement
+        if rx0[j]==rx0[i] and ry0[j]==ry0[i] and i!=j:
+            print("they match")
+            break
+        else:
+            i+=1
+            break
+
 vx0=[2]*natoms
 vy0=[3]*natoms
 
-
+# * STEP1:
+# *     Simple Functions
+# *
 def potential_wall(xi,nu):
     u_left_boundary=((1/xi)**12-2*(1/xi)**6)
     u_right_boundary=((1/(l-xi))**12-2*(1/(l-xi))**6)
@@ -95,7 +110,9 @@ def force_field(xi,nu):
     return fx,fy
 
 
-#step0: allocate memory
+# * STEP2:
+# *     Memory Allocation
+# *
 m=[0]*natoms    #*
 k=[0]*natoms    #*
 dt=[0]*natoms   #*
@@ -116,11 +133,14 @@ u_wall_sum=0
 u_lj_sum=0
 
 box.atoms.resize(natoms)
-file=TFile("test/particle_box_rx{}_ry{}_vx{}_vy{}_multiparticle.root".format(rx0[0],ry0[0],vx0[0],vy0[0]), "recreate" );
+#file=TFile("data/particle_box_rx{}_ry{}_vx{}_vy{}_multiparticle.root".format(rx0[0],ry0[0],vx0[0],vy0[0]), "recreate" );
+file=TFile("data/particle_box_rx0_ry0_vx0_vy0_multiparticle.root", "recreate" );
 tree=TTree("time-sequence", "particle object storage")
 tree.Branch('box',box)
 
-#step1: stormer-verlet
+# * STEP3:
+# *     Verlet Algorithm + Energy
+# *
 for n in range(0,nsteps):
     ke_sum=0
     u_wall_sum=0
@@ -212,6 +232,7 @@ for n in range(0,nsteps):
             box.atoms[p].u_lj_avg.push_back(u_lj_sum/natoms)
             total_energy_avg=u_wall_sum/natoms+u_lj_sum/natoms+ke_sum/natoms
             box.atoms[p].total_energy_avg.push_back(total_energy_avg)
+
             '''
             for p in range(0,natoms):
                 for j in range(p,natoms):
@@ -225,13 +246,3 @@ for n in range(0,nsteps):
 tree.Fill()
 tree.Write()
 file.Close()
-
-'''
-test=np.zeros((5,5))
-for i in range(0,5):
-    for j in range(i,5):
-        test[i][j]=i+0.5
-        test[j][i]=-test[i][j]
-        if i==j:
-            test[i][j]=0
-'''
