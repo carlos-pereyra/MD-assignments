@@ -6,17 +6,17 @@
 
 import numpy as np
 from numpy import random
+from datetime import datetime
+from array import array
 import ROOT
 from ROOT import TTree,TFile,gROOT
 from ROOT import TCanvas,TGraph,TPad,TBrowser
-from datetime import datetime
-from array import array
 
 random.seed(int(datetime.now().strftime("%s")))
 l=20
 natoms=10
 nsteps=10000
-
+ndt_steps=20
 
 #   STEP1:
 #       * Simple Functions
@@ -50,7 +50,7 @@ def wall_force(xi,nu):
 #   STEP2:
 #       * Variables
 file=TFile("data/test.root", "recreate" );
-tree=TTree("time-sequence", "particle object storage")
+tree=TTree("time_sequence", "particle object storage")
 
 t_dum=array('f',[0]*natoms)
 ux_dum=array('f',[0]*natoms)
@@ -99,6 +99,20 @@ tree.Branch('ke',ke,'ke/F')
 tree.Branch('pe_wall',pe_wall,'pe_wall/F')
 tree.Branch('pe_jone',pe_jone,'pe_jone/F')
 
+energy_tree=TTree("system_energy", "energy vs time")
+E_p_i_n=array('f',[0])
+KE_p_i_n=array('f',[0])
+energy_tree.Branch('E_p_i_n',E_p_i_n,'E_p_i_n/F') #potential energy
+energy_tree.Branch('KE_p_i_n',KE_p_i_n,'KE_p_i_n/F') #kinetic energy
+energy_tree.Branch('t',t,'t/F')
+
+avg_energy_tree=TTree("avg_system_energy", "energy vs dt")
+E_p_n=array('f',[0])
+KE_p_n=array('f',[0])
+avg_energy_tree.Branch('E_p_n',E_p_n,'E_p_n/F')
+avg_energy_tree.Branch('KE_p_n',KE_p_n,'KE_p_n/F')
+avg_energy_tree.Branch('dt',dt,'dt/F')
+
 for i in range(0,len(x_dum)):
     for j in range(i,len(x_dum)):
         while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1):
@@ -123,9 +137,15 @@ u_lj_mat=np.zeros((natoms,natoms))
 
 #   STEP3:
 #       * Verlet Algorithm + Energy
-for inc in range(0,1):
+for inc in range(0,ndt_steps):
     dt_dum=array('f',[0.01*(inc+1)]*natoms)
+    E_p_n_set=[]
+    KE_p_n_set=[]
     for n in range(0,nsteps):
+        KE_i=[]
+        U_ij_n=[]
+        U_i_wall_n=[]
+        #E_p_i_n=[]
         for p in range(0,natoms):
             ''' Lennard-Jones '''
             for j in range(p,natoms): #interaction potential
@@ -143,9 +163,9 @@ for inc in range(0,1):
             ke_dum[p]=0.5*m_dum[p]*(vx_dum[p]**2+vy_dum[p]**2)
             pe_wall_dum[p]=wall_potential(x_dum[p],y_dum[p])
             ''' Sum Energy for each Atom '''
-            #u_lj_n[p]+=np.sum(u_lj_mat[p])
-            #l_mv_n[p]+=l_mv
-            #u_wl_n[p]+=u_wl
+            U_ij_n.append(np.sum(u_lj_mat[p]))
+            U_i_wall_n.append(pe_wall_dum[p])
+            KE_i.append(ke_dum[p])
             ''' Verlet-Method '''
             t_dum[p]=dt_dum[p]*n
             ux_dum[p]=vx_dum[p]+dt_dum[p]*fx_dum[p]/(2*m_dum[p])
@@ -174,10 +194,24 @@ for inc in range(0,1):
                 pe_jone[0]=pe_jone_dum[p]
                 tree.Fill()
 
-        print("time: {}".format(t_dum[p]))
+        #print("time: {}".format(t_dum[p]))
+        E_p_i_n[0]=np.sum(U_ij_n+U_i_wall_n)/len(U_i_wall_n) #total energy/natoms
+        KE_p_i_n[0]=np.sum(KE_i)/len(KE_i)
+        t[0]=t_dum[p]
+        energy_tree.Fill()
+        E_p_n_set.append(E_p_i_n[0]) #total energy for all time
+        KE_p_n_set.append(KE_p_i_n[0])
+
+    E_p_n[0]=np.sum(E_p_n_set)/len(E_p_n_set) #total energy of system/n-steps
+    KE_p_n[0]=np.sum(KE_p_n_set)/len(KE_p_n_set)
+    dt[0]=dt_dum[0]
+    avg_energy_tree.Fill()
 
 
 #   STEP3:
 #       * write to disk
 tree.Write()
+energy_tree.Write()
+avg_energy_tree.Write()
+
 file.Close()
