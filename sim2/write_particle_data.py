@@ -142,7 +142,6 @@ for n in range(0,nsteps):
         l_mv_n[p]+=l_mv
         u_wl_n[p]+=u_wl
         ''' Verlet-Method '''
-        #print("rx: {}, ry: {}, vx: {}, vy: {}, fx: {}, fy: {}, ux: {}, uy: {} id: {} dt: {} m: {}".format(rx[p],ry[p],vx[p],vy[p],fx[p],fy[p],ux[p],uy[p],p,dt[p],m[p]))
         t[p]=dt[p]*n
         ux[p]=vx[p]+dt[p]*fx[p]/(2*m[p])
         uy[p]=vy[p]+dt[p]*fy[p]/(2*m[p])
@@ -182,3 +181,5 @@ for n in range(0,nsteps):
 tree.Fill()
 tree.Write()
 file.Close()
+
+#print("rx: {}, ry: {}, vx: {}, vy: {}, fx: {}, fy: {}, ux: {}, uy: {} id: {} dt: {} m: {}".format(rx[p],ry[p],vx[p],vy[p],fx[p],fy[p],ux[p],uy[p],p,dt[p],m[p]))
