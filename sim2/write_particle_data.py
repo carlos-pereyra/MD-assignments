@@ -15,8 +15,8 @@ from ROOT import TCanvas,TGraph,TPad,TBrowser
 random.seed(int(datetime.now().strftime("%s")))
 l=20
 natoms=10
-nsteps=10000
-ndt_steps=20
+nsteps=1000
+ndt_steps=1
 
 #   STEP1:
 #       * Simple Functions
@@ -50,38 +50,40 @@ def wall_force(xi,nu):
 #   STEP2:
 #       * Variables
 file=TFile("data/test.root", "recreate" );
+
+''' Tree 1 '''
 tree=TTree("time_sequence", "particle object storage")
+t_dum   =   array('f',[0]*natoms)
+ux_dum  =   array('f',[0]*natoms)
+uy_dum  =   array('f',[0]*natoms)
+x_dum   =   array('f',[0]*natoms)
+y_dum   =   array('f',[0]*natoms)
+fx_dum  =   array('f',[0]*natoms)
+fy_dum  =   array('f',[0]*natoms)
+vx_dum  =   array('f',[2]*natoms)
+vy_dum  =   array('f',[3]*natoms)
+dt_dum  =   array('f',[0.01]*natoms)
+m_dum   =   array('f',[1]*natoms)
 
-t_dum=array('f',[0]*natoms)
-ux_dum=array('f',[0]*natoms)
-uy_dum=array('f',[0]*natoms)
-x_dum=array('f',[0]*natoms)
-y_dum=array('f',[0]*natoms)
-fx_dum=array('f',[0]*natoms)
-fy_dum=array('f',[0]*natoms)
-vx_dum=array('f',[2]*natoms)
-vy_dum=array('f',[3]*natoms)
-dt_dum=array('f',[0.01]*natoms)
-m_dum=array('f',[1]*natoms)
-ke_dum=array('f',[0]*natoms)
-pe_wall_dum=array('f',[0]*natoms)
-pe_jone_dum=array('f',[0]*natoms)
+t       =   array('f',[0])
+ux      =   array('f',[0])
+uy      =   array('f',[0])
+x       =   array('f',[0])
+y       =   array('f',[0])
+fx      =   array('f',[0])
+fy      =   array('f',[0])
+vx      =   array('f',[2])
+vy      =   array('f',[3])
+n       =   array('i',[0])
 
-t=array('f',[0])
-ux=array('f',[0])
-uy=array('f',[0])
-x=array('f',[0])
-y=array('f',[0])
-fx=array('f',[0])
-fy=array('f',[0])
-vx=array('f',[0])
-vy=array('f',[0])
-id=array('i',[0])
-dt=array('f',[0])
-m=array('f',[1])
-ke=array('f',[0])
-pe_wall=array('f',[0])
-pe_jone=array('f',[0])
+id      =   array('i',[0])
+dt      =   array('f',[0])
+m       =   array('f',[1])
+
+u_wall  =   array('f',[0])
+ke      =   array('f',[0])
+u_lj    =   array('f',[0])
+
 tree.Branch('t',t,'t/F')
 tree.Branch('ux',ux,'ux/F')
 tree.Branch('uy',uy,'uy/F')
@@ -91,43 +93,61 @@ tree.Branch('fx',fx,'fx/F')
 tree.Branch('fy',fy,'fy/F')
 tree.Branch('vx',vx,'vx/F')
 tree.Branch('vy',vy,'vy/F')
+tree.Branch('n',n,'n/I')
 
 tree.Branch('id',id,'id/I')
 tree.Branch('dt',dt,'dt/F')
 tree.Branch('m',m,'m/F')
+
+tree.Branch('u_wall',u_wall,'u_wall/F')
 tree.Branch('ke',ke,'ke/F')
-tree.Branch('pe_wall',pe_wall,'pe_wall/F')
-tree.Branch('pe_jone',pe_jone,'pe_jone/F')
+tree.Branch('u_lj',u_lj,'u_lj/F')
 
-energy_tree=TTree("system_energy", "energy vs time")
-E_p_i_n=array('f',[0])
-KE_p_i_n=array('f',[0])
-energy_tree.Branch('E_p_i_n',E_p_i_n,'E_p_i_n/F') #potential energy
-energy_tree.Branch('KE_p_i_n',KE_p_i_n,'KE_p_i_n/F') #kinetic energy
-energy_tree.Branch('t',t,'t/F')
 
-avg_energy_tree=TTree("avg_system_energy", "energy vs dt")
-E_p_n=array('f',[0])
-KE_p_n=array('f',[0])
-avg_energy_tree.Branch('E_p_n',E_p_n,'E_p_n/F')
-avg_energy_tree.Branch('KE_p_n',KE_p_n,'KE_p_n/F')
-avg_energy_tree.Branch('dt',dt,'dt/F')
+''' Tree 2 '''
+tree2=TTree("system_energy", "energy vs time")
 
+u_wall_avg      =   array('f',[0])
+ke_avg          =   array('f',[0])
+u_lj_avg        =   array('f',[0])
+
+tree2.Branch('t',t,'t/F')
+tree2.Branch('n',n,'n/I')
+tree2.Branch('u_wall_avg',u_wall_avg,'u_wall_avg/F')    #potential energy
+tree2.Branch('ke_avg',ke_avg,'ke_avg/F')                #kinetic energy
+tree2.Branch('u_lj_avg',u_lj_avg,'u_lj_avg/F')
+tree2.Branch('dt',dt,'dt/F')
+
+''' Tree 3 '''
+tree3=TTree("avg_system_energy", "energy vs dt")
+
+u_lj_avg_list   =   array('f')
+ke_avg_list     =   array('f')
+u_wall_avg_list =   array('f')
+
+E_p_n           =   array('f',[0])
+KE_p_n          =   array('f',[0])
+
+tree3.Branch('E_p_n',E_p_n,'E_p_n/F')
+tree3.Branch('KE_p_n',KE_p_n,'KE_p_n/F')
+tree3.Branch('dt',dt,'dt/F')
+
+''' Random Positions '''
 for i in range(0,len(x_dum)):
     for j in range(i,len(x_dum)):
-        while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1):
+        while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1) or (np.sqrt(x_dum[i]**2+y_dum[i]**2)<1):
             print("too close together i {} j {}".format(i,j))
-            x_dum[i]=random.random()*l
-            y_dum[i]=random.random()*l
+            x_dum[i]=random.random()*(l-1)
+            y_dum[i]=random.random()*(l-1)
             if(i==j):
                 break
 
 for i in range(0,len(x_dum)):
     for j in range(i,len(x_dum)):
-        while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1):
+        while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1) or (np.sqrt(x_dum[i]**2+y_dum[i]**2)<1):
             print("too close together i {} j {}".format(i,j))
-            x_dum[i]=random.random()*l
-            y_dum[i]=random.random()*l
+            x_dum[i]=random.random()*(l-1)
+            y_dum[i]=random.random()*(l-1)
             if(i==j):
                 break
 
@@ -139,79 +159,84 @@ u_lj_mat=np.zeros((natoms,natoms))
 #       * Verlet Algorithm + Energy
 for inc in range(0,ndt_steps):
     dt_dum=array('f',[0.01*(inc+1)]*natoms)
-    E_p_n_set=[]
-    KE_p_n_set=[]
-    for n in range(0,nsteps):
-        KE_i=[]
-        U_ij_n=[]
-        U_i_wall_n=[]
-        #E_p_i_n=[]
-        for p in range(0,natoms):
+    for time_step in range(0,nsteps):
+        u_wall_list=array('f',[0]*natoms)
+        ke_list=array('f',[0]*natoms)
+        u_lj_list=array('f',[0]*natoms)
+        for i in range(0,natoms):
             ''' Lennard-Jones '''
-            for j in range(p,natoms): #interaction potential
-                r[p][j]=((x_dum[p]-x_dum[j])**2+(y_dum[p]-y_dum[j])**2)**1/2.
-                r[j][p]=r[p][j]
-                if p==j:
-                    r[p][j]=0
-                    u_lj_mat[p][j]=0
+            for j in range(i,natoms):
+                r[i][j]=((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)**1/2.
+                r[j][i]=r[i][j]
+                if i==j:
+                    r[i][j]=0
+                    u_lj_mat[i][j]=0
                 else:
-                    u_lj_mat[p][j]=lennard_jones_potential(r[p][j])
-                    u_lj_mat[j][p]=u_lj_mat[p][j]
+                    u_lj_mat[i][j]=lennard_jones_potential(r[i][j])
+                    u_lj_mat[j][i]=u_lj_mat[i][j]
         
             ''' Each Atom's Instantaneous Energy '''
-            pe_jone_dum[p]=np.sum(u_lj_mat[p])
-            ke_dum[p]=0.5*m_dum[p]*(vx_dum[p]**2+vy_dum[p]**2)
-            pe_wall_dum[p]=wall_potential(x_dum[p],y_dum[p])
-            ''' Sum Energy for each Atom '''
-            U_ij_n.append(np.sum(u_lj_mat[p]))
-            U_i_wall_n.append(pe_wall_dum[p])
-            KE_i.append(ke_dum[p])
+            u_wall[0]=np.sum(u_lj_mat[i])
+            ke[0]=0.5*m_dum[i]*(vx_dum[i]**2+vy_dum[i]**2)
+            u_lj[0]=wall_potential(x_dum[i],y_dum[i])
+            
+            ''' Add Energy of each Atom to List '''
+            #print("u_wall: {}\t ke: {}\t u_lj: {}\t n: {} dt: {}".format(u_wall[0],ke[0],u_lj[0],time_step,dt_dum[0]))
+            u_lj_list[i]=np.sum(u_lj_mat[i])
+            ke_list[i]=0.5*m_dum[i]*(vx_dum[i]**2+vy_dum[i]**2)
+            u_wall_list[i]=wall_potential(x_dum[i],y_dum[i])
+            
             ''' Verlet-Method '''
-            t_dum[p]=dt_dum[p]*n
-            ux_dum[p]=vx_dum[p]+dt_dum[p]*fx_dum[p]/(2*m_dum[p])
-            uy_dum[p]=vy_dum[p]+dt_dum[p]*fy_dum[p]/(2*m_dum[p])
-            x_dum[p]=x_dum[p]+ux_dum[p]*dt_dum[p]
-            y_dum[p]=y_dum[p]+uy_dum[p]*dt_dum[p]
-            fx_dum[p],fy_dum[p]=wall_force(x_dum[p],y_dum[p])
-            vx_dum[p]=ux_dum[p]+dt_dum[p]*fx_dum[p]/(2*m_dum[p])
-            vy_dum[p]=uy_dum[p]+dt_dum[p]*fy_dum[p]/(2*m_dum[p])
+            t_dum[i]=dt_dum[i]*time_step
+            ux_dum[i]=vx_dum[i]+dt_dum[i]*fx_dum[i]/(2*m_dum[i])
+            uy_dum[i]=vy_dum[i]+dt_dum[i]*fy_dum[i]/(2*m_dum[i])
+            x_dum[i]=x_dum[i]+ux_dum[i]*dt_dum[i]
+            y_dum[i]=y_dum[i]+uy_dum[i]*dt_dum[i]
+            fx_dum[i],fy_dum[i]=wall_force(x_dum[i],y_dum[i])
+            vx_dum[i]=ux_dum[i]+dt_dum[i]*fx_dum[i]/(2*m_dum[i])
+            vy_dum[i]=uy_dum[i]+dt_dum[i]*fy_dum[i]/(2*m_dum[i])
 
             #triggering condition
-            if n<1000: #and ncycle[p]>0: # triggering condition
-                t[0]=t_dum[p]
-                ux[0]=ux_dum[p]
-                uy[0]=uy_dum[p]
-                x[0]=x_dum[p]
-                y[0]=y_dum[p]
-                fx[0]=fx_dum[p]
-                fy[0]=fy_dum[p]
-                vx[0]=vx_dum[p]
-                vy[0]=vy_dum[p]
-                id[0]=p
-                dt[0]=dt_dum[p]
-                ke[0]=ke_dum[p]
-                pe_wall[0]=pe_wall_dum[p]
-                pe_jone[0]=pe_jone_dum[p]
+            if time_step<1000:
+                t[0]=t_dum[i]
+                ux[0]=ux_dum[i]
+                uy[0]=uy_dum[i]
+                x[0]=x_dum[i]
+                y[0]=y_dum[i]
+                fx[0]=fx_dum[i]
+                fy[0]=fy_dum[i]
+                vx[0]=vx_dum[i]
+                vy[0]=vy_dum[i]
+                n[0]=time_step
+                
+                id[0]=i
+                dt[0]=dt_dum[i]
+                m[0]=m_dum[i]
+                
                 tree.Fill()
+    
+        if time_step<1000:
+            #print("time: {}".format(t_dum[p]))
+            u_lj_avg[0]=np.sum(u_lj_list[0:natoms-3])/(natoms-3)
+            ke_avg[0]=np.sum(ke_list[0:natoms-3])/(natoms-3)
+            u_wall_avg[0]=np.sum(u_wall_list[0:natoms-3])/(natoms-3)
+            
+            u_lj_avg_list.append(u_lj_avg[0])
+            ke_avg_list.append(ke_avg[0])
+            u_wall_avg_list.append(u_wall_avg[0])
+            
+            tree2.Fill()
 
-        #print("time: {}".format(t_dum[p]))
-        E_p_i_n[0]=np.sum(U_ij_n+U_i_wall_n)/len(U_i_wall_n) #total energy/natoms
-        KE_p_i_n[0]=np.sum(KE_i)/len(KE_i)
-        t[0]=t_dum[p]
-        energy_tree.Fill()
-        E_p_n_set.append(E_p_i_n[0]) #total energy for all time
-        KE_p_n_set.append(KE_p_i_n[0])
-
-    E_p_n[0]=np.sum(E_p_n_set)/len(E_p_n_set) #total energy of system/n-steps
-    KE_p_n[0]=np.sum(KE_p_n_set)/len(KE_p_n_set)
+    E_p_n[0]=np.sum(u_lj_avg_list+u_wall_avg_list)/len(u_lj_avg_list) #total energy of system/n-steps
+    KE_p_n[0]=np.sum(ke_avg_list)/len(ke_avg_list)
     dt[0]=dt_dum[0]
-    avg_energy_tree.Fill()
+    tree3.Fill()
 
 
 #   STEP3:
 #       * write to disk
 tree.Write()
-energy_tree.Write()
-avg_energy_tree.Write()
+tree2.Write()
+tree3.Write()
 
 file.Close()
