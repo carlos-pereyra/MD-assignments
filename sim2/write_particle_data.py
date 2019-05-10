@@ -14,9 +14,9 @@ from ROOT import TCanvas,TGraph,TPad,TBrowser
 
 random.seed(int(datetime.now().strftime("%s")))
 l=20
-natoms=10
-nsteps=1000
-ndt_steps=1
+natoms=20
+nsteps=5000
+ndtsteps=20
 
 #   STEP1:
 #       * Simple Functions
@@ -49,7 +49,7 @@ def wall_force(xi,nu):
 
 #   STEP2:
 #       * Variables
-file=TFile("data/test.root", "recreate" );
+file=TFile("data/particle_in_box_data.root", "recreate" );
 
 ''' Tree 1 '''
 tree=TTree("time_sequence", "particle object storage")
@@ -125,12 +125,27 @@ u_lj_avg_list   =   array('f')
 ke_avg_list     =   array('f')
 u_wall_avg_list =   array('f')
 
+U_lj_time_avg   =   array('f',[0])
+U_wall_time_avg =   array('f',[0])
 E_p_n           =   array('f',[0])
 KE_p_n          =   array('f',[0])
 
+tree3.Branch('U_lj_time_avg',U_lj_time_avg,'U_lj_time_avg/F')
+tree3.Branch('U_wall_time_avg',U_wall_time_avg,'U_wall_time_avg/F')
 tree3.Branch('E_p_n',E_p_n,'E_p_n/F')
 tree3.Branch('KE_p_n',KE_p_n,'KE_p_n/F')
 tree3.Branch('dt',dt,'dt/F')
+
+''' Tree 4 '''
+tree4=TTree("system", "system_parameters")
+
+natom           =   array('i',[0])
+ntime           =   array('i',[0])
+ndt             =   array('i',[0])
+
+tree4.Branch('natom',natom,'natom/I')
+tree4.Branch('ntime',ntime,'ntime/I')
+tree4.Branch('ndt',ndt,'ndt/I')
 
 ''' Random Positions '''
 for i in range(0,len(x_dum)):
@@ -144,7 +159,7 @@ for i in range(0,len(x_dum)):
 
 for i in range(0,len(x_dum)):
     for j in range(i,len(x_dum)):
-        while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1) or (np.sqrt(x_dum[i]**2+y_dum[i]**2)<1):
+        while (np.sqrt((x_dum[i]-x_dum[j])**2+(y_dum[i]-y_dum[j])**2)<1) or (np.sqrt((x_dum[i]-l)**2+(y_dum[i]-l)**2)<1) or (np.sqrt(x_dum[i]**2+y_dum[i]**2)<1) or x_dum[i]<1 or y_dum[i]<1:
             print("too close together i {} j {}".format(i,j))
             x_dum[i]=random.random()*(l-1)
             y_dum[i]=random.random()*(l-1)
@@ -157,8 +172,11 @@ u_lj_mat=np.zeros((natoms,natoms))
 
 #   STEP3:
 #       * Verlet Algorithm + Energy
-for inc in range(0,ndt_steps):
+for inc in range(0,ndtsteps): #check that everytime we restart we start from new position and origin initial cond. -cp
     dt_dum=array('f',[0.01*(inc+1)]*natoms)
+    ke_avg_list=array('f',[0]*natoms)
+    u_lj_avg_list=array('f',[0]*natoms)
+    u_wall_avg_list==array('f',[0]*natoms)
     for time_step in range(0,nsteps):
         u_wall_list=array('f',[0]*natoms)
         ke_list=array('f',[0]*natoms)
@@ -217,9 +235,9 @@ for inc in range(0,ndt_steps):
     
         if time_step<1000:
             #print("time: {}".format(t_dum[p]))
-            u_lj_avg[0]=np.sum(u_lj_list[0:natoms-3])/(natoms-3)
-            ke_avg[0]=np.sum(ke_list[0:natoms-3])/(natoms-3)
-            u_wall_avg[0]=np.sum(u_wall_list[0:natoms-3])/(natoms-3)
+            u_lj_avg[0]=np.sum(u_lj_list)/(natoms)
+            ke_avg[0]=np.sum(ke_list)/(natoms)
+            u_wall_avg[0]=np.sum(u_wall_list)/(natoms)
             
             u_lj_avg_list.append(u_lj_avg[0])
             ke_avg_list.append(ke_avg[0])
@@ -227,16 +245,26 @@ for inc in range(0,ndt_steps):
             
             tree2.Fill()
 
-    E_p_n[0]=np.sum(u_lj_avg_list+u_wall_avg_list)/len(u_lj_avg_list) #total energy of system/n-steps
-    KE_p_n[0]=np.sum(ke_avg_list)/len(ke_avg_list)
+    ''' dt change '''
+    U_lj_time_avg   = np.sum(u_lj_avg_list)/len(u_lj_avg_list)
+    U_wall_time_avg = np.sum(u_wall_avg_list)/len(u_wall_avg_list)
+    E_p_n[0]        = (U_lj_time_avg+U_wall_time_avg)/len(u_lj_avg_list)
+    KE_p_n[0]       = np.sum(ke_avg_list)/len(ke_avg_list)
     dt[0]=dt_dum[0]
+
     tree3.Fill()
 
+
+natom[0]=natoms
+ntime[0]=nsteps
+ndt[0]=ndtsteps
+tree4.Fill()
 
 #   STEP3:
 #       * write to disk
 tree.Write()
 tree2.Write()
 tree3.Write()
+tree4.Write()
 
 file.Close()
