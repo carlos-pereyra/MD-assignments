@@ -1,6 +1,6 @@
 """
 *  author: carlos p
-*  purpose: solve n-particle verlet
+*  purpose: generate random distribution from uniform dist.
 *
 """
 
@@ -9,6 +9,8 @@ import random
 import os
 from datetime import datetime
 from array import array
+import time
+start_time=time.time()
 
 import ROOT
 from ROOT import TTree,TFile,gROOT
@@ -16,7 +18,7 @@ from ROOT import TCanvas,TGraph,TPad,TBrowser
 
 random.seed(datetime.now())
 DBG=0
-ndata=int(10E4)
+ndata=int(10E3)
 nbins=int(1E3)
 file=TFile("data/data_n{}.root".format(ndata),"recreate");
 tree=TTree("distribution", "data-storage")
@@ -59,7 +61,7 @@ def g_distribution(nu1,nu2):
 while ndata>0:
     ndata-=1
     if ndata%int(10E6)==0:
-        print("loop: {}".format(ndata))
+        print("--- %s seconds --- %s" % (time.time() - start_time,ndata))
 
     ''' xi1 calculation '''
     xi1[0]=random.uniform(0, 1) #xi1
@@ -106,7 +108,7 @@ while ndata>0:
 
 print("DONE")
 for i in range(nbins):
-    print("bin: {} xi1: {} nu1: {}".format(i,xi1_list[i], nu1_list[i]))
+    if DBG: print("bin: {} xi1: {} nu1: {}".format(i,xi1_list[i], nu1_list[i]))
     n[0]=i
     xi1[0]=xi1_list[i]
     xi2[0]=xi2_list[i]
