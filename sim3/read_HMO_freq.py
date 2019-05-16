@@ -1,10 +1,10 @@
 """
 *  author: carlos p
-*  purpose: plot HMO r(t) vs t
+*  purpose: plot HMO frequency vs Wdt
 *
 """
 
-nlines=4
+nlines=2
 import numpy as np
 from array import array
 import ROOT
@@ -25,15 +25,15 @@ tree_energy.GetEntry()
 
 
 ''' Canvas-1 '''
-c1=TCanvas("c1", "canvas_1", 850, 400)
+c1=TCanvas("c1", "canvas_1", 600, 400)
 c1.GetFrame().SetBorderMode(0);
 c1.GetFrame().SetBorderMode(0);
 c1.GetFrame().SetBorderSize(0);
-c1.SetLeftMargin(0.1)
+c1.SetLeftMargin(0.15)
 c1.SetRightMargin(0.1)
 c1.SetBottomMargin(0.15)
 c1.SetTopMargin(0.1)
-legend = TLegend(0.64, 0.20, .97, 0.37)
+legend = TLegend(0.17, 0.70, .79, 0.87)
 
 #pad1=TPad("pad1","xi_1_histogram",0,0.0,0.51,0.98);
 #pad1.SetLeftMargin(0.1)
@@ -51,69 +51,45 @@ legend = TLegend(0.64, 0.20, .97, 0.37)
 
 #pad1.cd()
 if nlines>=1:
-    tree.Draw("r:t","id==0 && t<20","")
-    g0=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
+    tree_freq.Draw("f_avg:Wdt","","")
+    g0=TGraph(tree_freq.GetSelectedRows(),tree_freq.GetV2(),tree_freq.GetV1())
     g0.SetName("g0")
     g0.SetTitle("r0=%.0f, v0=%.0f" % (tree.r0,tree.v0))
     g0.SetMarkerStyle(2)
     g0.SetLineWidth(3)
-    g0.GetXaxis().SetTitle('time')
-    g0.GetYaxis().SetTitle('r')
+    g0.GetXaxis().SetTitle('#Omega_0 dt')
+    g0.GetYaxis().SetTitle('Freq [Hz]')
     g0.GetXaxis().SetTitleSize(0.06)
     g0.GetYaxis().SetTitleSize(0.06)
     g0.Draw("LA PLC PFC")
 
 if nlines>=2:
-    tree.Draw("r:t","id==10 && t<20","same")
-    g1=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
+    tree_freq.Draw("f_i_avg:Wdt","","same")
+    g1=TGraph(tree_freq.GetSelectedRows(),tree_freq.GetV2(),tree_freq.GetV1())
     g1.SetName("g1")
     g1.SetMarkerStyle(2)
     g1.SetLineWidth(3)
     g1.Draw("L PLC PFC")
 
-if nlines>=3:
-    tree.Draw("r:t","id==15 && t<20","same")
-    g2=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
-    g2.SetName("g2")
-    g2.SetMarkerStyle(2)
-    g2.SetLineWidth(3)
-    g2.Draw("L PLC PFC")
-
-if nlines>=4:
-    tree.Draw("r:t","id==20 && t<20","same")
-    g3=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
-    g3.SetName("g3")
-    g3.SetMarkerStyle(2)
-    g3.SetLineWidth(3)
-    g3.Draw("L PLC PFC")
-
-if nlines>=5:
-    tree.Draw("r:t","id==25 && t<20","same")
-    g4=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
-    g4.SetName("g4")
-    g4.SetMarkerStyle(2)
-    g4.SetLineWidth(3)
-    g4.Draw("L PLC PFC")
-
 #pad2.cd()
-legend.SetTextSize(0.04)
-#legend.AddEntry("g0","#Omega_0 dt={:.2e}".format(w0),"l")
-#legend.AddEntry("g1","#Omega_0 dt={:.2e}".format(w1),"l")
-#legend.AddEntry("g2","#Omega_0 dt={:.2e}".format(w2),"l")
-#legend.AddEntry("g3","#Omega_0 dt={:.2e}".format(w3),"l")
 
 gStyle.SetOptStat(0)
 gStyle.SetPalette(kRainBow)
-gStyle.SetOptTitle(0);
+#gStyle.SetOptTitle(0);
 gStyle.SetPalette(kRainBow);
 #gROOT.SetStyle("ATLAS");
 
+legend.SetTextSize(0.045)
+legend.AddEntry("g0","frequency average with full step velocity","l")
+legend.AddEntry("g1","frequency average with half step velocity","l")
+legend.Draw()
+
 #pad1.SetGrid()
 #pad2.SetGrid()
-#legend.Draw()
+c1.SetGrid()
 c1.Modified()
 c1.Update()
 
 text=raw_input()
 
-gPad.Print("images/HMO_r%.0f_v%.0f.pdf" % (tree.r0,tree.v0))
+gPad.Print("images/HMO_freq_r%.0f_v%.0f.pdf" % (tree.r0,tree.v0))
