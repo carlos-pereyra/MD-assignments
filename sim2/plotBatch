@@ -1,0 +1,6 @@
+python read_e_dt.py data/AtomBox_1atoms_100000tSteps_30dts_vx0_2_vy0_3.root
+#python read_x_y.py data/AtomBox_1atoms_100000tSteps_20dts_vx0_2_vy0_3.root
+#python read_e_t.py data/AtomBox_1atoms_100000tSteps_20dts_vx0_2_vy0_3.root
+#python read_x_y_e_comp.py data/AtomBox_1atoms_100000tSteps_20dts_vx0_2_vy0_3.root
+#python read_potential_e_x.py data/AtomBox_1atoms_10000tSteps_20dts_vx0_2_vy0_3.root
+#python read_kinetic_e_x.py data/AtomBox_1atoms_10000tSteps_20dts_vx0_2_vy0_3.root

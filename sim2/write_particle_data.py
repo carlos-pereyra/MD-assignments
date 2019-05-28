@@ -65,19 +65,6 @@ def main():
     '''============================
         Random Positions
         ==========================='''
-    '''
-    for i in range(0,len(f.x)):
-        for j in range(i,len(f.x)):
-            while (np.sqrt((f.x[i]-f.x[j])**2+(f.y[i]-f.y[j])**2)<1) or (np.sqrt((f.x[i]-f.l)**2+(f.y[i]-f.l)**2)<1) or (np.sqrt(f.x[i]**2+f.y[i]**2)<1) or f.x[i]<1 or f.y[i]<1:
-                #print("too close together i {} j {}".format(i,j))
-                f.x[i]=random.random()*(f.l-1)
-                f.y[i]=random.random()*(f.l-1)
-                if(i==j):
-                    break
-
-    f.x[0]=1
-    f.y[0]=1
-    '''
     random_positions()
     random_positions()
 
@@ -94,12 +81,13 @@ def main():
     for n_dt in range(0,f.ndt):
         #check that everytime we restart we start from new position and origin initial cond. -cp
 
-        f.dt[0] = 0.01*(n_dt+1)
+        f.dt[0]             = 0.001*(n_dt+1)
+        f.dt_id[0]          = n_dt
         
-        f.total_ke_v_sum = array('f',[0])
-        f.total_ke_u_sum = array('f',[0])
-        f.total_v_sum    = array('f',[0])
-        f.total_u_sum    = array('f',[0])
+        f.total_ke_v_sum    = array('f',[0])
+        f.total_ke_u_sum    = array('f',[0])
+        f.total_v_sum       = array('f',[0])
+        f.total_u_sum       = array('f',[0])
         
         print("ndt: %s --- %s seconds --- changing" % (f.dt[0],time.time()-start_time))
         
@@ -139,13 +127,16 @@ def main():
                 f.uy[i]=f.vy[i]+f.dt[0]*f.fy[i]/(2*f.m[0])
                 f.x[i]=f.x[i]+f.ux[i]*f.dt[0]
                 f.y[i]=f.y[i]+f.uy[i]*f.dt[0]
-                f.fx[i],f.fy[i]=wall_force(f.x[i],f.y[i])+(np.sum(f_jones_matrix_x[i]),np.sum(f_jones_matrix_y[i]))
-                #f.fx[i]+=np.sum(f_jones_matrix_x[i])
-                #f.fy[i]+=np.sum(f_jones_matrix_y[i])
+
+                f_wall_x,f_wall_y=wall_force(f.x[i],f.y[i])
+                f_lj_x=np.sum(f_jones_matrix_x[i])
+                f_lj_y=np.sum(f_jones_matrix_y[i])
+                f.fx[i]=f_wall_x+f_lj_x
+                f.fy[i]=f_wall_y+f_lj_y
+
                 f.vx[i]=f.ux[i]+f.dt[0]*f.fx[i]/(2*f.m[0])
                 f.vy[i]=f.uy[i]+f.dt[0]*f.fy[i]/(2*f.m[0])
                 f.id[i]=i
-                f.dt[0] = 0.01*(n_dt+1)
                 
                 #========================================
                 # i-th Particle Energy Calculation
@@ -194,7 +185,7 @@ def main():
         f.total_ke_u_avg[0] = f.total_ke_u_sum[0]/float(f.nstep)    #<KE_p^n>
         f.total_e_v_avg[0]  = f.total_v_sum[0]/float(f.nstep)       #<E_p^n>
         f.total_e_u_avg[0]  = f.total_u_sum[0]/float(f.nstep)       #<E_p^n>
-        f.dt[0]             = f.dt[0]
+        #f.dt[0]             = f.dt[0]
         f.tree3.Fill()
 
         #print("AllTime SUM -> keU: {:.2f} keV: {:.2f} totalU: {:.2f} keV sum: {:.2f} {} {}".format(f.total_ke_u_sum[0],f.total_ke_u_sum[0],f.total_ke_u_sum[0],f.total_ke_v_sum[0],f.natom, f.nstep))
