@@ -11,21 +11,162 @@ from datetime import datetime
 random.seed(int(datetime.now().strftime("%s")))
 import time
 start_time=time.time()
-import fileOut as f
-L=f.l
+import ROOT
+from ROOT import TTree,TFile,gROOT
+from ROOT import TCanvas,TGraph,TPad,TBrowser
+
+alpha_list  = [0.1,1,10]
+temp_list   = [0.1,1,10]
+L           = 20
+natom       = 5
+nstep       = int(10E3)
+ndt         = 30
+nal         = int(len(alpha_list))
+ntemp       = int(len(temp_list))
+#====================================
+# tree1: TURFV
+#====================================
+t               	= array('f',[0])
+ux              	= array('f',[0]*natom)
+uy              	= array('f',[0]*natom)
+x               	= array('f',[0]*natom)
+y               	= array('f',[0]*natom)
+fx              	= array('f',[0]*natom)
+fy              	= array('f',[0]*natom)
+vx              	= array('f',[2]*natom) #set initial velocity
+vy              	= array('f',[3]*natom) #set initial velocity
+# system
+n               	= array('i',[0])
+id              	= array('i',[0]*natom)
+dt              	= array('f',[0])
+dt_id           	= array('i',[0])
+m               	= array('f',[1])
+# energy per particle
+ke_v            	= array('f',[0]*natom)
+ke_u            	= array('f',[0]*natom)
+u_lj            	= array('f',[0]*natom)
+u_lj_pb         	= array('f',[0]*natom)
+# gaussian number
+alpha           	= array('f',[0])
+alpha_id        	= array('i',[0])
+xi_1            	= array('f',[0])
+xi_2            	= array('f',[0])
+eta_1           	= array('f',[0])
+eta_2           	= array('f',[0])
+beta_1         		= array('f',[0])
+beta_2              = array('f',[0])
+temp                = array('f',[0])
+temp_id             = array('i',[0])
+Kb                  = array('f',[1])
+a			        = array('f',[0])
+b			        = array('f',[0])
+eku_true		    = array('f',[0])
+#====================================
+# tree2: Energy as a Function of time
+#====================================
+ke_v_natom_sum      = array('f',[0])
+ke_u_natom_sum      = array('f',[0])
+u_lj_natom_sum      = array('f',[0])
+u_lj_pb_natom_sum   = array('f',[0])
+ke_v_natom_avg      = array('f',[0])
+ke_u_natom_avg      = array('f',[0])
+u_lj_natom_avg      = array('f',[0])
+u_lj_pb_natom_avg   = array('f',[0])
+e_v_natom_avg       = array('f',[0]) #total average energy, velocity=v @t=n
+e_u_natom_avg       = array('f',[0]) #total average energy, velocity=u @t=n
+#====================================
+# tree3: average energy over ntime
+#====================================
+ke_v_nsum		    = array('f',[0])
+ke_u_nsum   	    = array('f',[0])
+e_v_nsum    		= array('f',[0]) #average energy, velocity=v
+e_u_nsum    		= array('f',[0]) #average energy, velocity=v
+ke_v_navg   		= array('f',[0])
+ke_u_navg   		= array('f',[0])
+e_v_navg    		= array('f',[0]) #average energy, velocity=v
+e_u_navg    		= array('f',[0]) #average energy, velocity=u
+dt          		= array('f',[0])
+#====================================
+# tree4: System Parameters
+#====================================
+vx0                 = array('i',[int(vx[0]) ])
+vy0             	= array('i',[int(vy[0]) ])
+atoms           	= array('i',[natom])
+n_time_steps    	= array('i',[0])
+n_dt_steps      	= array('i',[0])
+
+str0="data/dat_{}natom_{}nsteps_{:.0f}vx_{:.0f}vy_ndt_{}.root"
+tfile=TFile(str0.format(natom,nstep,vx[0],vy[0],ndt),"recreate")
+tree=TTree("timeSequence", "data with respect to time")
+tree.Branch('atoms',atoms,'atoms/I')
+tree.Branch('t',t,'t/F')
+tree.Branch('ux',ux,'ux[atoms]/F')
+tree.Branch('uy',uy,'uy[atoms]/F')
+tree.Branch('x',x,'x[atoms]/F')
+tree.Branch('y',y,'y[atoms]/F')
+tree.Branch('fx',fx,'fx[atoms]/F')
+tree.Branch('fy',fy,'fy[atoms]/F')
+tree.Branch('vx',vx,'vx[atoms]/F')
+tree.Branch('vy',vy,'vy[atoms]/F')
+tree.Branch('id',id,'id[atoms]/I')
+tree.Branch('ke_v',ke_v,'ke_v[atoms]/F')
+tree.Branch('ke_u',ke_u,'ke_u[atoms]/F')
+tree.Branch('u_lj',u_lj,'u_lj[atoms]/F')
+tree.Branch('u_lj_pb',u_lj_pb,'u_lj_pb[atoms]/F')
+tree.Branch('nstep',n,'n/I')
+tree.Branch('dt',dt,'dt/F')
+tree.Branch('dt_id',dt_id,'dt_id/I')
+tree.Branch('alpha',alpha,'alpha/F')
+tree.Branch('alpha_id',alpha_id,'alpha_id/I')
+tree.Branch('temp',temp,'temp/F')
+tree.Branch('temp_id'       ,temp_id,   'temp_id/I')
+tree.Branch('m'             ,m,         'm/F')
+#Tree 3
+tree3=TTree("avgSystemEnergy", "energy vs dt")
+tree3.Branch('ke_v_navg'    ,ke_v_navg, 'ke_v_navg/F')
+tree3.Branch('ke_u_navg'    ,ke_u_navg, 'ke_u_navg/F')
+tree3.Branch('e_v_navg'     ,e_v_navg,  'e_v_navg/F')
+tree3.Branch('e_u_navg'     ,e_u_navg,  'e_u_navg/F')
+tree3.Branch('eku_true'     ,eku_true,  'eku_true/F')
+tree3.Branch('b'            ,b,         'b/F')
+tree3.Branch('dt'           ,dt,        'dt/F')
+tree3.Branch('dt_id'        ,dt_id,     'dt_id/I')
+tree3.Branch('alpha'        ,alpha,     'alpha/F')
+tree3.Branch('alpha_id'     ,alpha_id,  'alpha_id/I')
+tree3.Branch('temp'         ,temp,      'temp/F')
+tree3.Branch('temp_id'      ,temp_id,   'temp_id/I')
+#Tree 4
+tree4=TTree("systemParameters", "system parameters")
+tree4.Branch('vx0'          ,vx0,       'vx0/I')
+tree4.Branch('vy0'          ,vy0,       'vy0/I')
+
+file = open('data/dat_{}natom_{}nsteps_{:.0f}vx_{:.0f}vy_ndt_{}'.format(natom,nstep,vx[0],vy[0],ndt),'w')
+hdr="ek_v \t ek_u \t ep_v \t ep_u \t dt \t dt_id \t temp \t temp_id \t alpha \t alpha_id\n"
+file.write(hdr)
 
 def random_positions():
-    for i in range(0,len(f.x)):
-        for j in range(i,len(f.x)):
-            while (np.sqrt((f.x[i]-f.x[j])**2+(f.y[i]-f.y[j])**2)<1) or (np.sqrt((f.x[i]-f.l)**2+(f.y[i]-f.l)**2)<1) or (np.sqrt(f.x[i]**2+f.y[i]**2)<1) or f.x[i]<1 or f.y[i]<1:
-                #print("too close together i {} j {}".format(i,j))
-                f.x[i]=random.random()*(f.l-1)
-                f.y[i]=random.random()*(f.l-1)
+    #randomly generate x,y positions
+    for i in range(0,len(x)):
+        for j in range(i,len(x)):
+            xij         = x[i]-x[j]
+            yij         = y[i]-y[j]
+            hyp_lj      = np.sqrt(xij**2 + yij**2)
+            hyp_wall1   = np.sqrt((x[i]-L)**2+(y[i]-L)**2)
+            hyp_wall2   = np.sqrt(x[i]**2+y[i]**2)
+            while hyp_lj<1 or hyp_wall1<1 or hyp_wall2<1 or x[i]<1 or y[i]<1:
+                x[i]=random.random()*(L-1)
+                y[i]=random.random()*(L-1)
+                xij         = x[i]-x[j]
+                yij         = y[i]-y[j]
+                hyp_lj      = np.sqrt(xij**2 + yij**2)
+                hyp_wall1   = np.sqrt((x[i]-L)**2+(y[i]-L)**2)
+                hyp_wall2   = np.sqrt(x[i]**2+y[i]**2)
                 if(i==j):
                     break
 
 
 def wall_potential(xi,nu):
+    #wall scalar potential
     u_left_boundary     = ((1/xi)**12-2*(1/xi)**6)
     u_right_boundary    = ((1/(L-xi))**12-2*(1/(L-xi))**6)
     u_bottom_boundary   = ((1/nu)**12-2*(1/nu)**6)
@@ -33,13 +174,8 @@ def wall_potential(xi,nu):
     u=u_left_boundary+u_right_boundary+u_bottom_boundary+u_top_boundary
     return u
 
-
-def lennard_jones_potential(r):
-    u_lj=(1/r)**12-2*(1/r)**6
-    return u_lj
-
-
 def wall_force(xi,nu):
+    #wall force vector force
     fx_left_boundary    = 12*((1/xi)**13-(1/xi)**7)
     fx_right_boundary   = -12*((1/(l-xi))**13-(1/(l-xi))**7)
     fx                  = fx_left_boundary+fx_right_boundary
@@ -49,226 +185,288 @@ def wall_force(xi,nu):
     fy                  = fy_bottom_boundary+fy_top_boundary
     return fx,fy
 
+def lj_potential(xij,yij,i=0,j=0,n=0):
+    #lennard jones scalar potential
+    #with spline compensation
+    ri = 1.1080
+    rc = 1.5475
+    r  = np.sqrt(xij**2 + yij**2) #2-body separation distance
+    if r<ri:
+        if r==0:
+            label="lj_potential()->avoid divide by zero [i={} j={} n={}]"
+            print(label.format(i,j,n))
+            u = 10000
+        else:
+            u = (1/r)**12-2*(1/r)**6
+    if ri<=r<rc:
+        u = -6.129*(r-rc)**2 + -4.655*(r-rc)**3
+    elif r>=rc:
+        u = 0
 
-def lennard_jones_force(xij,yij):
-    gamma = np.sqrt(xij**2 + yij**2) #2Body Separation Distance
-    fx    = (1/gamma**13 + 1/gamma**7)*(xij/gamma)*(12/np.sqrt(2))
-    fy    = (1/gamma**13 + 1/gamma**7)*(yij/gamma)*(12/np.sqrt(2))
-    return fx,fy
+    return u
+
+'''
+def lj_force(xij,yij):
+    #lennard jones force vector
+    #with spline compensation
+    ri = 1.1080
+    rc = 1.5475
+    r  = np.sqrt(xij**2 + yij**2) #2Body Separation Distance
+    if r<ri:
+        if r==0:
+            print("lj_force()->avoid divide by zero")
+            fx = 10000
+            fy = 10000
+        else:
+            fx = (1/r**13 + 1/r**7)*(xij/r) #*(12/np.sqrt(2))
+            fy = (1/r**13 + 1/r**7)*(xij/r) #*(12/np.sqrt(2))
+    if ri<=r<rc:
+        fx      = 12.258*(xij-rc)**1 + 13.966*(xij-rc)**2
+        fy      = 12.258*(yij-rc)**1 + 13.966*(yij-rc)**2
+    elif r>=rc:
+        fx      = 0
+        fy      = 0
+    
+    return fx,fy'''
+
+
+def lj_force(xij,yij):
+    #with spline compensation
+    ri = 1.1080
+    rc = 1.5475
+    r  = np.sqrt(xij**2 + yij**2) #2Body Separation Distance
+    if r is 0:
+        r+=.0001
+    ir = 1/r
+    
+    if r<ri:
+        fx = (12/r**13 - 12/r**7)*(xij*ir)
+        fy = (12/r**13 - 12/r**7)*(xij*ir)
+        lj = 1
+        sp = 0
+    
+    if ri<=r<rc:
+        fx = 12.258*((r-rc)**1)*(xij*ir) + 13.966*((r-rc)**2)*(xij*ir)
+        fy = 12.258*((r-rc)**1)*(yij*ir) + 13.966*((r-rc)**2)*(yij*ir)
+        lj = 0
+        sp = 1
+    elif r>=rc:
+        fx = 0
+        fy = 0
+        lj = 0
+        sp = 0
+    
+    return fx, fy
 
 
 def main():
-    # random positioning
     random_positions()
     random_positions()
     print("randomization done --- %s seconds --- changing" % (time.time()-start_time))
 
     #initialize matrices
-    r=np.zeros((f.natom,f.natom))
-    u_jones_matrix=np.zeros((f.natom,f.natom))
-    f_jones_matrix_x=np.zeros((f.natom,f.natom))
-    f_jones_matrix_y=np.zeros((f.natom,f.natom))
-
-    for n_al in range(0,f.nal): #============================
-                                #   Alpha coef Loop
-                                #============================
-        f.alpha[0]    = f.alpha_list[n_al]
-        f.alpha_id[0] = n_al
+    lj_u_mat=np.zeros((natom,natom))
+    lj_pb_u_mat=np.zeros((natom,natom))
+    lj_f_mat=np.zeros((2,natom,natom)) #mat[i][j][0] fx, mat[i][j][0] fy
+    lj_pb_f_mat=np.zeros((2,natom,natom)) #periodic boundary forces
+    for n_al in range(0,nal):
+        #============================
+        #   Alpha coef Loop
+        #============================
+        alpha[0]    = alpha_list[n_al]
+        alpha_id[0] = n_al
+        for n_temp in range(0,ntemp):
+            #============================
+            #   Temperature Loop
+            #============================
+            temp[0]     = temp_list[n_temp]
+            temp_id[0]  = n_temp
         
-        for n_temp in range(0,f.ntemp): #============================
-                                        #   Temperature Loop
-                                        #============================
-            f.temp[0]     = f.temp_list[n_temp]
-            f.temp_id[0]  = n_temp
-        
-            for n_dt in range(0,f.ndt): #============================
-                                        #   dt Loop
-                                        #============================
+            for n_dt in range(0,ndt):
+                #============================
+                #   dt Loop
+                #============================
                 random_positions()
                 random_positions()
-                f.dt[0]             = 0.001*(n_dt+1)
-                f.dt_id[0]          = n_dt
-                f.total_ke_v_sum    = array('f',[0])
-                f.total_ke_u_sum    = array('f',[0])
-                f.total_v_sum       = array('f',[0])
-                f.total_u_sum       = array('f',[0])
-                print("ndt: %s -- %s seconds -- %s alpha -- %s temp" % (f.dt[0],
-                                                               time.time()-start_time,
-                                                               f.alpha[0],
-                                                               f.temp[0]))
+                dt[0]       = 0.001*(n_dt+1)
+                dt_id[0]    = n_dt
+                ke_v_nsum   = array('f',[0])
+                ke_u_nsum   = array('f',[0])
+                e_v_nsum    = array('f',[0])
+                e_u_nsum    = array('f',[0])
                 
-                for n_time in range(0,f.nstep): #============================
-                                                #  Time Loop
-                                                #============================
-                    f.ke_v_sum_i    = array('f',[0])
-                    f.ke_u_sum_i    = array('f',[0])
-                    f.u_jones_sum_i = array('f',[0])
-                    f.u_wall_sum_i  = array('f',[0])
+                inv2m       = 1/(2.*m[0])
+                a[0]        = (1-alpha[0]*dt[0]*inv2m )/(1+alpha[0]*dt[0]*inv2m )
+                b[0]        = 1/(1+alpha[0]*dt[0]*inv2m )
+                c           = a[0]/np.sqrt(b[0])
+                d           = np.sqrt(b[0])
+                for n_time in range(0,nstep):
+                    #============================
+                    #  Time Loop
+                    #============================
+                    ke_v_natom_sum      = array('f',[0])
+                    ke_u_natom_sum      = array('f',[0])
+                    u_lj_natom_sum      = array('f',[0])
+                    u_lj_pb_natom_sum   = array('f',[0])
                     
-                    for i in range(0,f.natom): #ith particle
+                    #calculate force on each particle
+                    for i in range(0,natom):
+                        #ith particle
+                        for j in range(i,natom):
+                            #============================
+                            #  Lennard-Jones Loop
+                            #============================
+                            xij=x[i]-x[j]
+                            yij=y[i]-y[j]
+                            
+                            #interbox collision
+                            if i==j: #diagonal
+                                lj_u_mat[i][j]      = 0 # u
+                                lj_f_mat[0][i][j]   = 0 # fx
+                                lj_f_mat[1][i][j]   = 0 # fy
+                            else: #off diagonal
+                                lj_u_mat[i][j]      = lj_potential(xij,yij,i,j,n_time)
+                                lj_u_mat[j][i]      = lj_u_mat[i][j]
+                                f_x,f_y             = lj_force(xij,yij)
+                                lj_f_mat[0][i][j]   = f_x
+                                lj_f_mat[1][i][j]   = f_y
+                                lj_f_mat[0][j][i]   =-f_x
+                                lj_f_mat[1][j][i]   =-f_y
+                            
+                            # periodic boundary conditions
+                            if xij>0.5*L:   xij-=L
+                            if xij<=-0.5*L: xij+=L
+                            if yij>0.5*L:   yij-=L
+                            if yij<=-0.5*L: yij+=L
+                            if i==j: #diagonal
+                                lj_pb_u_mat[i][j]    = 0 # u
+                                lj_pb_f_mat[0][i][j] = 0 # fx
+                                lj_pb_f_mat[1][i][j] = 0 # fy
+                            else: #off diagonal
+                                lj_pb_u_mat[i][j]    = lj_potential(xij,yij)
+                                lj_pb_u_mat[j][i]    = lj_pb_u_mat[i][j]
+                                f_x,f_y              = lj_force(xij,yij)
+                                lj_pb_f_mat[0][i][j] = f_x
+                                lj_pb_f_mat[1][i][j] = f_y
+                                lj_pb_f_mat[0][j][i] =-f_x
+                                lj_pb_f_mat[1][j][i] =-f_y
                         
-                        for j in range(i,f.natom): #============================
-                                                   #  Lennard-Jones Loop
-                                                   #============================
-                            xij=f.x[i]-f.x[j]
-                            yij=f.y[i]-f.y[j]
-                            r[i][j]=(xij**2+yij**2)**0.5
-                            r[j][i]=r[i][j]
-                            if i==j:
-                                r[i][j]=0
-                                u_jones_matrix[i][j]=0
-                                f_jones_matrix_x[i][j]=0
-                                f_jones_matrix_y[i][j]=0
-                            else:
-                                u_jones_matrix[i][j]=lennard_jones_potential(r[i][j])
-                                u_jones_matrix[j][i]=u_jones_matrix[i][j]
-                                f_jones_matrix_x[i][j],f_jones_matrix_y[i][j]=lennard_jones_force(xij,yij)
-                                f_jones_matrix_x[j][i]=-f_jones_matrix_x[i][j]
-                                f_jones_matrix_y[j][i]=-f_jones_matrix_y[i][j]
-                    
-                        '''========================================
-                            Verlet Motion Algorithm
-                            ========================================'''
-                        '''
-                        f.t[0]=f.dt[0]*n_time
-                        f.ux[i]=f.vx[i]+f.dt[0]*f.fx[i]/(2*f.m[0])
-                        f.uy[i]=f.vy[i]+f.dt[0]*f.fy[i]/(2*f.m[0])
-                        f.x[i]=f.x[i]+f.ux[i]*f.dt[0]
-                        f.y[i]=f.y[i]+f.uy[i]*f.dt[0]'''
+                    #update Positions
+                    for i in range(0,natom):
+                        # Langevin Motion Algorithm
+                        xi_1[0]=random.uniform(0,1) # xi1 calculation
+                        if xi_1[0]==0:
+                            print("change xi-1: {}".format(xi_1[0]))
+                            xi_1[0]=1-xi_1[0]
                         
-                        '''========================================
-                            Langevin Motion Algorithm
-                            ========================================'''
-                        f.xi_1[0]=random.uniform(0,1) # xi1 calculation
-                        if f.xi_1[0]==0:
-                            print("change xi-1: {}".format(f.xi_1[0]))
-                            f.xi_1[0]=1-f.xi_1[0]
+                        xi_2[0]=random.uniform(0,1) # xi2 calculation
+                        if xi_2[0]==0:
+                            print("change xi-2: {}".format(xi_2[0]))
+                            xi_2[0]=1-xi2[0]
                         
-                        f.xi_2[0]=random.uniform(0,1) # xi2 calculation
-                        if f.xi_2[0]==0:
-                            print("change xi-2: {}".format(f.xi_2[0]))
-                            f.xi_2[0]=1-f.xi2[0]
-                        
-                        # random number process
-                        f.eta_1[0]=np.sqrt(-2*np.log(f.xi_1[0]))*np.cos(2*np.pi*f.xi_2[0])
-                        f.eta_2[0]=np.sqrt(-2*np.log(f.xi_1[0]))*np.sin(2*np.pi*f.xi_2[0])
-                        f.beta_1[0]=np.sqrt(2*f.alpha[0]*f.Kb[0]*f.temp[0]*f.dt[0])*f.eta_1[0]
-                        f.beta_2[0]=np.sqrt(2*f.alpha[0]*f.Kb[0]*f.temp[0]*f.dt[0])*f.eta_2[0]
-                        a=(1-f.alpha[0]*f.dt[0]/(2*f.m[0]) )/(1+f.alpha[0]*f.dt[0]/(2*f.m[0]) )
-                        b=1/(1+f.alpha[0]*f.dt[0]/(2*f.m[0]) )
+                        # gaussian number process
+                        eta_1[0]=np.sqrt(-2*np.log(xi_1[0]))*np.cos(2*np.pi*xi_2[0])
+                        eta_2[0]=np.sqrt(-2*np.log(xi_1[0]))*np.sin(2*np.pi*xi_2[0])
+                        beta_1[0]=np.sqrt(2*alpha[0]*Kb[0]*temp[0]*dt[0])*eta_1[0]
+                        beta_2[0]=np.sqrt(2*alpha[0]*Kb[0]*temp[0]*dt[0])*eta_2[0]
                         # turfv
-                        f.t[0]=f.dt[0]*(n_time+1)
-                        f.ux[i]=np.sqrt(b)*(f.vx[0]+(f.dt[0]*f.fx[i]+f.beta_1[0])/(2*f.m[0]) )
-                        f.uy[i]=np.sqrt(b)*(f.vy[0]+(f.dt[0]*f.fy[i]+f.beta_2[0])/(2*f.m[0]) )
-                        f.x[i]=f.x[i]+np.sqrt(b)*f.dt[0]*f.ux[i]
-                        f.y[i]=f.y[i]+np.sqrt(b)*f.dt[0]*f.uy[i]
+                        t[0]=dt[0]*(n_time+1)
+                        ux[i]   = d*(vx[0]+(dt[0]*fx[i]+beta_1[0])*inv2m )
+                        uy[i]   = d*(vy[0]+(dt[0]*fy[i]+beta_2[0])*inv2m )
+                        x[i]    = x[i]+d*dt[0]*ux[i]
+                        y[i]    = y[i]+d*dt[0]*uy[i]
+                            
+                        #reenter box boundary
+                        if x[i]>=L:     x[i]-=L
+                        if x[i]<0:      x[i]+=L
+                        if y[i]>=L:     y[i]-=L
+                        if y[i]<0:      y[i]+=L
+                        
+                        f_lj_x=np.sum(lj_f_mat[0][i])
+                        f_lj_y=np.sum(lj_f_mat[1][i])
+                        f_pb_x=np.sum(lj_pb_f_mat[0][i])
+                        f_pb_y=np.sum(lj_pb_f_mat[1][i])
+                        fx[i]=f_lj_x+f_pb_x
+                        fy[i]=f_lj_y+f_pb_y
+                        #vx[i]=ux[i]+dt[0]*fx[i]/(2*m[0])
+                        #vy[i]=uy[i]+dt[0]*fy[i]/(2*m[0])
+                        vx[i]=c*ux[0]+(dt[0]*fx[i]+beta_1[0])*inv2m
+                        vy[i]=c*uy[0]+(dt[0]*fy[i]+beta_2[0])*inv2m
 
-                        '''================
-                            lennard jones
-                            forces
-                            ================'''
-                        f_lj_x=np.sum(f_jones_matrix_x[i])
-                        f_lj_y=np.sum(f_jones_matrix_y[i])
-                        #f_wall_x,f_wall_y=wall_force(f.x[i],f.y[i])
-                        '''================
-                            periodic boundary
-                            forces
-                            ================'''
-                        xi=f.x[i]
-                        xj=-f.x[i]
-                        xij=xj-xi
-                        if xij>=0.5*L: xij-=L
-                        if xij<-0.5*L: xij+=L
-                        
-                        yi=f.y[i]
-                        yj=-f.y[i]
-                        yij=yj-yi
-                        if yij>=0.5*L: yij-=L
-                        if yij<-0.5*L: yij+=L
-                        
-                        f_pdc_x,f_pdc_y=lennard_jones_force(xij,yij)
-                        
-                        '''================
-                            total forces
-                            ================'''
-                        f.fx[i]=f_pdc_x+f_lj_x
-                        f.fy[i]=f_pdc_y+f_lj_y
-                        #f.fx[i]=f_wall_x+f_lj_x
-                        #f.fy[i]=f_wall_y+f_lj_y
-                        
-                        '''================
-                            update velocity
-                            ================'''
-                        f.vx[i]=f.ux[i]+f.dt[0]*f.fx[i]/(2*f.m[0])
-                        f.vy[i]=f.uy[i]+f.dt[0]*f.fy[i]/(2*f.m[0])
-                        
-                        #========================================
                         # i-th Particle Energy Calculation
-                        #========================================
-                        f.ke_v[i]=0.5*f.m[0]*(f.vx[i]**2+f.vy[i]**2)
-                        f.ke_u[i]=0.5*f.m[0]*(f.ux[i]**2+f.uy[i]**2)
-                        f.u_jones[i]=np.sum(u_jones_matrix[i])
-                        f.u_wall[i]=wall_potential(f.x[i],f.y[i])
-                        f.id[i]=i
-                        #========================================
-                        # SUM Paritlce Energy Calculation
-                        #========================================
-                        f.ke_v_sum_i[0]     += f.ke_v[i]
-                        f.ke_u_sum_i[0]     += f.ke_u[i]
-                        f.u_jones_sum_i[0]  += f.u_jones[i]
-                        f.u_wall_sum_i[0]   += f.u_wall[i]
+                        ke_v[i]     = 0.5*m[0]*(vx[i]**2+vy[i]**2)
+                        ke_u[i]     = 0.5*m[0]*(ux[i]**2+uy[i]**2)
+                        u_lj[i]     = np.sum(lj_u_mat[i])
+                        u_lj_pb[i]  = np.sum(lj_pb_u_mat[i])
+                        id[i]=i
+                        
+                        # sum paritlce energy calculation
+                        ke_v_natom_sum[0]   += ke_v[i] #eKn_sum_v
+                        ke_u_natom_sum[0]   += ke_u[i]
+                        u_lj_natom_sum[0]   += u_lj[i]
+                        u_lj_pb_natom_sum[0]+= u_lj_pb[i]
+                        itrstr="i-> {} ux->{} uy->{} vx->{} vy->{} fx->{} fy->{} beta1->{} eta->{} alpha->{} temp->{} dt->{}"
+                        #print(itrstr.format(i,ux[i],uy[i],vx[i],vy[i],fx[i],fy[i],beta_1[0],eta_1[0],alpha[0],temp[0],dt[0]))
+                        #if ux[i]>10000: exit(1)
                     
-                    #========================================
-                    # TimeLoop: Average Paritlce Energy Calculation
-                    #========================================
-                    f.ke_v_avg_i[0]     = f.ke_v_sum_i[0]/float(f.natom)
-                    f.ke_u_avg_i[0]     = f.ke_u_sum_i[0]/float(f.natom)
-                    f.u_jones_avg_i[0]  = f.u_jones_sum_i[0]/(f.natom)
-                    f.u_wall_avg_i[0]   = f.u_wall_sum_i[0]/(f.natom)
-                    f.total_v_i[0]      = f.ke_v_avg_i[0]+f.u_wall_avg_i[0]+f.u_jones_avg_i[0]
-                    f.total_u_i[0]      = f.ke_u_avg_i[0]+f.u_wall_avg_i[0]+f.u_jones_avg_i[0]
+                    # average energy per particle
+                    u_lj_natom_avg[0]       = u_lj_natom_sum[0]/float(natom)
+                    u_lj_pb_natom_avg[0]    = u_lj_pb_natom_sum[0]/float(natom)
+                    ke_v_natom_avg[0]       = ke_v_natom_sum[0]/float(natom)
+                    ke_u_natom_avg[0]       = ke_u_natom_sum[0]/float(natom)
+                    e_v_natom_avg[0]        = ke_v_natom_avg[0]+u_lj_natom_avg[0]+u_lj_pb_natom_avg[0]
+                    e_u_natom_avg[0]        = ke_u_natom_avg[0]+u_lj_natom_avg[0]+u_lj_pb_natom_avg[0]
+
+                    # Sum averaged energies
+                    ke_v_nsum[0]  += ke_v_natom_avg[0]
+                    ke_u_nsum[0]  += ke_u_natom_avg[0]
+                    e_v_nsum[0]   += e_v_natom_avg[0]
+                    e_u_nsum[0]   += e_u_natom_avg[0]
+            
+                    if n_time<1000:
+                        tree.Fill()
+
+                # average energy per time
+                ke_v_navg[0] = ke_v_nsum[0]/float(nstep)    #<KE_p^n>
+                ke_u_navg[0] = ke_u_nsum[0]/float(nstep)    #<KE_p^n>
+                e_v_navg[0]  = e_v_nsum[0]/float(nstep)     #<E_p^n>
+                e_u_navg[0]  = e_u_nsum[0]/float(nstep)     #<E_p^n>
+                eku_true[0]  = 0.5*Kb[0]*temp[0]*b[0]
+                timestr      = time.time()-start_time
+                tree3.Fill() #energy vs dt (at alpha=1 and temp=1)
+                str1="{:.2f}\t{:.2f}\t{:.2f}\t{:.2f}\t{:.3f}\t{:.0f}\t{:.1f}\t{:.0f}\t{:.1f}\t{:.0f}\n"
+                file.write(str1.format(ke_v_navg[0],
+                                       ke_u_navg[0],
+                                       e_v_navg[0],
+                                       e_u_navg[0],
+                                       dt[0],
+                                       dt_id[0],
+                                       temp[0],
+                                       temp_id[0],
+                                       alpha[0],
+                                       alpha_id[0]))
+                          
+                print("=============================================")
+                print("ndt: %s -- %s seconds -- %s alpha -- %s temp" % (dt[0],timestr,alpha[0],temp[0]))
+                str2="ekv->{:.2f} \t eku->{:.2f} \t epv->{:.2f} \t epu->{:.2f} \t dt->{:.3f}\t dtId->{:.0f} \t temp->{:.1f} \t tempId->{:.0f} \t alpha->{:.1f}\t alpha_id->{:.0f}\n"
+                print(str2.format(ke_v_navg[0],
+                                  ke_u_navg[0],
+                                  e_v_navg[0],
+                                  e_u_navg[0],
+                                  dt[0],
+                                  dt_id[0],
+                                  temp[0],
+                                  temp_id[0],
+                                  alpha[0],
+                                  alpha_id[0]))
                     
-                    #print("ke u: {:.2f} ke v: {:.2f} keU sum: {:.2f} keV sum: {:.2f} {} {}".format(f.ke_u_avg_i[0],f.ke_u_avg_i[0],f.ke_u_sum_i[0],f.ke_v_sum_i[0],f.natom, f.nstep))
-                    #========================================
-                    # Triggering condition
-                    #========================================
-                    if n_time<f.nrecord:
-                        f.tree.Fill()
-                        f.tree2.Fill() #energy per time
-
-                    #========================================
-                    # Prep for energy vs dt
-                    # - sum energies
-                    #========================================
-                    f.total_ke_v_sum[0] += f.ke_v_avg_i[0]
-                    f.total_ke_u_sum[0] += f.ke_u_avg_i[0]
-                    f.total_v_sum[0]    += f.total_v_i[0] #avg particle energy sum, velocity=v
-                    f.total_u_sum[0]    += f.total_u_i[0] #avg particle energy sum, velocity=u
-
-                #========================================
-                # dt Loop averageEnergy(dt)
-                #========================================
-                f.total_ke_v_avg[0] = f.total_ke_v_sum[0]/float(f.nstep)    #<KE_p^n>
-                f.total_ke_u_avg[0] = f.total_ke_u_sum[0]/float(f.nstep)    #<KE_p^n>
-                f.total_e_v_avg[0]  = f.total_v_sum[0]/float(f.nstep)       #<E_p^n>
-                f.total_e_u_avg[0]  = f.total_u_sum[0]/float(f.nstep)       #<E_p^n>
-                f.tree3.Fill() #energy vs dt (at alpha=1 and temp=1)
-
-                #print("AllTime SUM -> keU: {:.2f} keV: {:.2f} totalU: {:.2f} keV sum: {:.2f} {} {}".format(f.total_ke_u_sum[0],f.total_ke_u_sum[0],f.total_ke_u_sum[0],f.total_ke_v_sum[0],f.natom, f.nstep))
-                
-                print("AllTime AVG -> keU: {:.2f} keV: {:.2f} totalU: {:.2f} totalV: {:.2f} {} {}".format(f.total_ke_u_avg[0],f.total_ke_v_avg[0],f.total_e_u_avg[0],f.total_e_v_avg[0],f.natom, f.nstep))
-
-            f.atoms[0]              = f.natom
-            f.n_time_steps[0]       = f.nstep
-            f.n_dt_steps[0]         = f.ndt
-            f.tree4.Fill()
-
-    '''======================== Write2Disk ==========================='''
-    f.tree.Write() # everything respect to time
-    f.tree2.Write() # energy vs time
-    f.tree3.Write() # energy vs dt
-    f.tree4.Write() # system parameters
-    f.file.Close()
+    tree4.Fill()
+    # Write2Disk
+    tree.Write() #data respect to time
+    tree3.Write() # energy vs dt
+    tree4.Write() # system parameters
+    tfile.Close()
+    file.close()
 
 if __name__ == "__main__":
     main()
