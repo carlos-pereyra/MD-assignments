@@ -12,6 +12,8 @@ import random
 import os
 from datetime import datetime
 from array import array
+import time
+start_time=time.time()
 
 DBG=0
 DBG2=0
@@ -74,7 +76,10 @@ class Node(object):
         self.r=[]
         self.vx=vx
         self.vy=vy
+        self.ux=0
+        self.uy=0
         self.m=0
+        self.dt=0
         self.iter_issue=None
         self.next_node=None
         self.prev_node=None
@@ -165,16 +170,19 @@ class LinkedList(object):
     def getSize(self):
         return self.natoms
 
-    def getEnergies(self):
+    def getEnergies(self,tn):
         node=self.root
         ekv=0
         eku=0
         ulj=0
+        counter=0
         while node is not None:
-            ekv+=0.5*(node.vx*node.vx+node.vy*node.vy)
-            eku+=0.5*(node.ux*node.ux+node.uy*node.uy)
+            ekv+=0.5*node.m*(node.vx**2+node.vy**2)
+            eku+=0.5*node.m*(node.ux**2+node.uy**2)
             ulj+=np.sum(node.ulj)
             #print("id={} vx={} ekv={} eku={} ulj={}".format(node.id,node.vx,ekv,eku,ulj))
+            if tn==0 and DBG2:
+                print("tn={} vx={} vy={} ux={} uy={}".format(tn,node.vx,node.vy,node.ux,node.uy))
             node=node.next_node
         
         return ekv,eku,ulj
@@ -192,7 +200,8 @@ class LinkedList(object):
                     #print("same cell collision [{},{}]".format(node_a.cellx,node_b.celly))
                     same_node=True
                     node_b=node_b.next_node
-                    continue
+                    break
+                    #continue
                 
                 xij=node_a.x-node_b.x
                 yij=node_a.y-node_b.y
@@ -205,7 +214,8 @@ class LinkedList(object):
                 fx,fy,r=lj_force(xij,yij)
                 if abs(fx)>2000 or (abs(fx)>2000):
                     node_a.iter_issue=n
-                    print("High Force at time={} id_a={} id_b={} - xij={}".format(n,node_a.id,node_b.id,xij))
+                    label="High Force at time={} id_a={} id_b={} - xij={}"
+                    if DBG2: print(label.format(n,node_a.id,node_b.id,xij))
                     break #end time iter
                 
                 ulj=lj_potential(xij,yij)
@@ -223,8 +233,8 @@ class LinkedList(object):
                 node_a.r.append(r)
                 node_b=node_b.next_node
             
-            if same_node is True:
-                break
+            #if same_node is True:
+            #break
 
             node_a=node_a.next_node
 
@@ -256,7 +266,9 @@ class LinkedList(object):
 
         # Langevin Motion Algorithm
         while node is not None:
-            #print(title.format(node.id))
+            if tn==0 and DBG2:
+                print("uPos tn={} vx={} vy={} ux={} uy={}".format(tn,node.vx,node.vy,node.ux,node.uy))
+            
             fx=np.sum(node.fx)
             fy=np.sum(node.fy)
             
@@ -265,17 +277,22 @@ class LinkedList(object):
                         
             xi2=random.uniform(0,1)
             if xi2==0: xi2=1-xi2
-                
+            
             eta1=np.sqrt(-2*np.log(xi1))*np.cos(2*np.pi*xi2)
             eta2=np.sqrt(-2*np.log(xi1))*np.sin(2*np.pi*xi2)
             beta1=np.sqrt(2*self.alpha*self.kb*self.temp*self.dt)*eta1
             beta2=np.sqrt(2*self.alpha*self.kb*self.temp*self.dt)*eta2
             # turfv
-            node.t=node.dt*(tn+1)
-            node.ux=self.d*(node.vx+(node.dt*fx+beta1)*i2m )
-            node.uy=self.d*(node.vy+(node.dt*fy+beta2)*i2m )
-            node.x=node.x+self.d*node.dt*node.ux
-            node.y=node.y+self.d*node.dt*node.uy
+            node.t=self.dt*(tn+1)
+            node.ux=self.d*(node.vx+(self.dt*fx+beta1)*i2m )
+            node.uy=self.d*(node.vy+(self.dt*fy+beta2)*i2m )
+            node.x=node.x+self.d*self.dt*node.ux
+            node.y=node.y+self.d*self.dt*node.uy
+            
+            if node.id is 0 and DBG2:
+                test="a={} b={} c={} d={} i2m={} dt={} beta={} x={}"
+                print(test.format(self.a,self.b,self.c,self.d,i2m,self.dt,beta1,node.x))
+            
             node.vx=self.c*node.ux+(self.dt*fx+beta1)*i2m
             node.vy=self.c*node.uy+(self.dt*fy+beta2)*i2m
             
@@ -288,12 +305,28 @@ class LinkedList(object):
             node=node.next_node
 
     #def save2root(self):
-
+    def reset(self):
+        self.root=None
+        self.natoms=0
+        self.alpha=0
+        self.temp=0
+        self.dt=0
+        self.kb=1
+        self.a=0
+        self.b=0
+        self.c=0
+        self.d=0
+        self.L=0
+        self.nelements=0
+        self.nx=0 #x cell element no.
+        self.ny=0 #y cell element no.
+    
+    
     def printList(self):
         node = self.root
         while node is not None:
-            listStr="LinkedList->printList() (id={})=[{},{}]=[{:.2f},{:.2f}]"
-            print(listStr.format(node.id,node.cellx,node.celly,node.x,node.y))
+            listStr="LinkedList->printList() (id={})=[{},{}]=[{:.2f},{:.2f}] vx={} vy={} dt={}"
+            print(listStr.format(node.id,node.cellx,node.celly,node.x,node.y,node.vx,node.vy,node.dt))
             node = node.next_node
 
 class LinkedListMat(object):
@@ -347,9 +380,10 @@ class LinkedListMat(object):
             
             node.cellx  = int(node.x*(self.nx/(1.*self.L) ))
             node.celly  = int(node.y*(self.ny/(1.*self.L) ))
-            node.dt     = 0.001
             node.vx     = 2
             node.vy     = 3
+            node.ux     = 2
+            node.uy     = 3
             node.m      = 1
             node.id     = nn
             self.pixel_root[node.cellx][node.celly].add(node)
@@ -357,7 +391,7 @@ class LinkedListMat(object):
             xj.append(node.x)
             yj.append(node.y)
 
-    def setParameters(self,alpha,temp,dtstep):
+    def setParameters(self,alpha,temp,dt):
         #set grid attributes of linked list
         for i in range(self.nx):
             for j in range(self.ny):
@@ -365,7 +399,7 @@ class LinkedListMat(object):
                 if ll is not None:
                     ll.alpha=alpha
                     ll.temp=temp
-                    ll.dtstep=dtstep
+                    ll.dt=dt
                     ll.L=self.L
 
     def updateForces(self,n):
@@ -469,8 +503,6 @@ class LinkedListMat(object):
                 cell=self.pixel_root[nx][ny]
                 node=cell.root
                 if node is not None:
-                    #print("Node {}: F={}".format(node.id,node.fx))
-                    #node=node.next_node
                     cell.clearNodeForces()
 
     def reset(self):
@@ -478,6 +510,7 @@ class LinkedListMat(object):
             for ny in range(0,self.ny):
                 cell=self.pixel_root[nx][ny]
                 node=cell.root
+                self.natoms=0
                 while node is not None:
                     cell.removeNode(node)
                     node=node.next_node
@@ -492,7 +525,7 @@ class LinkedListMat(object):
                 if cell is not None:
                     cell.updateListedPositions(tn)
 
-    def getAvgEnergy(self):
+    def getAvgEnergy(self,tn):
         kev_mat=[]
         keu_mat=[]
         ulj_mat=[]
@@ -501,7 +534,7 @@ class LinkedListMat(object):
                 cell=self.pixel_root[nx][ny]
                 if cell is not None:
                     #get energies
-                    kev,keu,ulj=cell.getEnergies()
+                    kev,keu,ulj=cell.getEnergies(tn)
                     kev_mat.append(kev)
                     keu_mat.append(keu)
                     ulj_mat.append(ulj)
@@ -509,9 +542,10 @@ class LinkedListMat(object):
         ekv=np.sum(kev_mat)/self.natoms
         eku=np.sum(keu_mat)/self.natoms
         epn=np.sum(ulj_mat)/self.natoms
+        #print("linkMat->getAvgEnergy(): natoms={}".format(self.natoms))
         return ekv,eku,epn
 
-    def updateCells(self):
+    def updateCells(self,tn):
         for nx in range(0,self.nx):
             for ny in range(0,self.ny):
                 linked_list=self.pixel_root[nx][ny]
@@ -521,76 +555,68 @@ class LinkedListMat(object):
                     
                     counter=0
                     while node is not None:
-                        oldcellx=node.cellx
-                        oldcelly=node.celly
-                        newcellx=int(node.x*(self.nx/(1.*self.L) ))
-                        newcelly=int(node.y*(self.ny/(1.*self.L) ))
+                        cur_nx=node.cellx
+                        cur_ny=node.celly
+                        new_nx=int(node.x*(self.nx/(1.*self.L) ))
+                        new_ny=int(node.y*(self.ny/(1.*self.L) ))
                         
-                        '''
-                        if node.x>self.L or node.y>self.L: #within bounds
-                            node.x=random.random()*(self.L)
-                            node.y=random.random()*(self.L)
-                            newcellx=int(node.x*(self.nx/(1.*self.L)))
-                            newcelly=int(node.y*(self.ny/(1.*self.L) ))
-                            if 1: print("newX:{} X:{} newY:{} Y:{}".format(newcellx,node.x,newcelly,node.y))
-                                #exit()
-                            linked_list.removeNode(node)
-                            self.pixel_root[newcellx][newcelly].add(node)'''
-                        
-                        counter+=1
-                        if counter>50:
-                            print("im stuck fx: {} fy: {} time-iter={}".format(np.sum(node.fx),np.sum(node.fy),node.iter_issue) )
-                            exit()
-                        
-                        if node.x>self.L or node.x<0 or node.y>self.L or node.y<0:
-                            node.x=random.random()*(self.L-1)
-                            node.y=random.random()*(self.L-1)
-                            newcellx=int(node.x*(self.nx/(1.*self.L)))
-                            newcelly=int(node.y*(self.ny/(1.*self.L) ))
-                            node.cellx=newcellx
-                            node.celly=newcelly
-                            if 1: print("try={} newX:{} X:{} newY:{} Y:{} fx={} fy={}".format(counter, newcellx, node.x, newcelly, node.y, np.sum(node.fx), np.sum(node.fx) ))
+                        if cur_nx!=new_nx or cur_ny!=new_ny:
+                            if node.x<self.L and node.x>0 and node.y<self.L and node.y>0:
+                                label="Update id:{} Cell Assignement [{},{}]->[{},{}]"
+                                if DBG: print(label.format(node.id,cur_nx,cur_ny,new_nx,new_ny))
+                                node.cellx=new_nx
+                                node.celly=new_ny
+                                
+                                linked_list.removeNode(node)
+                                self.pixel_root[new_nx][new_ny].add(node)
+                                
+                                node=node.next_node
                             
-                            linked_list.removeNode(node)
-                            self.pixel_root[newcellx][newcelly].add(node)
-                            out_of_bounds=True
-                        
-                        elif (out_of_bounds is not True) and (oldcellx!=newcellx or oldcelly!=newcelly):
-                            node.cellx=newcellx
-                            node.celly=newcelly
-                            linked_list.removeNode(node)
-                            label="Update id:{} Cell Assignement [{},{}]->[{},{}]"
-                            if DBG: print(label.format(node.id,oldcellx,oldcelly,newcellx,newcelly))
-                            self.pixel_root[newcellx][newcelly].add(node)
-                            out_of_bounds=False
-                        
-                        if out_of_bounds is not True:
+                            else:
+                                counter+=1
+                                node.x=random.random()*(self.L-1)
+                                node.y=random.random()*(self.L-1)
+                                
+                                if counter>50:
+                                    label="im stuck fx: {} fy: {} time-iter={} nx={} ny={}"
+                                    print(label.format(np.sum(node.fx),np.sum(node.fy),tn,new_nx,new_ny) )
+                                    exit()
+                    
+                        else:
                             node=node.next_node
+                                        
+                            #continue
+
+
 
     def printList(self):
         print("PrintList====================================")
         for n_x in range(0,self.nx):
             for n_y in range(0,self.ny):
                 linked_list = self.pixel_root[n_x][n_y]
-                linked_list.printList()
+                #linked_list.printList()
+                if linked_list is not None:
+                    node=linked_list.root
+                    if node is not None:
+                        listStr="LinkedList->printList() (id={})=[{},{}]=[{:.2f},{:.2f}] vx={} vy={} dt={}"
+                        print(listStr.format(node.id,node.cellx,node.celly,node.x,node.y,node.vx,node.vy,node.dt))
 
 def main():
-    n=21
+    n=1
     nx=10
     ny=10
-    nsteps=int(1E3)
+    nsteps=int(10E3)
     
     alpha=1
     
-    temp=1
+    temp=10
     
     dtstep=0.001
-    dtmax =0.01
+    dtmax =0.1
     ndt=int(dtmax/dtstep)
     
     linkedListMatrix=LinkedListMat()
     linkedListMatrix.addGrid(nx,ny)
-    linkedListMatrix.printList()
     
     for n_dt in range(0,ndt):
         ekv_sum=0
@@ -598,27 +624,32 @@ def main():
         ulj_sum=0
         dt=(n_dt+1)*dtstep
         linkedListMatrix.reset()
+        linkedListMatrix.printList()
         linkedListMatrix.addAtoms(n) #autoadd to cells
         linkedListMatrix.setParameters(alpha,temp,dt) #comes after addGrid()
         for n_time in range(0,nsteps):
             linkedListMatrix.updateForces(n_time)
             linkedListMatrix.updatePositions(n_time)
-            ekv,eku,ulj=linkedListMatrix.getAvgEnergy()
+            ekv,eku,ulj=linkedListMatrix.getAvgEnergy(n_time)
             ekv_sum+=ekv
             eku_sum+=eku
             ulj_sum+=ulj
-            linkedListMatrix.updateCells()
+            linkedListMatrix.updateCells(n_time)
             linkedListMatrix.clearForces()
 
         ekvAvg=ekv_sum/nsteps
         ekuAvg=eku_sum/nsteps
         uljAvg=ulj_sum/nsteps
         
+        elaptime=time.time()-start_time
+        timelabel="time={}: "
         label="{} ndt out of {}: ekv={:.2f} eku={:.2f} ulj={:.2f} [dt={:.3f}, alpha={:.1f}, temp={:.1f}]"
-        print(label.format(n_dt,ndt,ekvAvg,ekuAvg,uljAvg,dt,alpha,temp))
-        linkedListMatrix.reset()
-
-    linkedListMatrix.printList()
+        print((timelabel+label).format(elaptime,n_dt,ndt,
+                                     ekvAvg,ekuAvg,
+                                     uljAvg,dt,alpha,temp))
+                                     
 
 if __name__ == "__main__":
     main()
+
+
