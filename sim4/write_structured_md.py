@@ -332,10 +332,15 @@ class LinkedList(object):
 class LinkedListMat(object):
     def __init__(self):
         self.pixel_root=None
+        self.natoms=0
+        self.alpha=0
+        self.temp=0
+        self.ndt=0
+        self.vx0=0
+        self.vy0=0
         self.nx=0       #nx elements
         self.ny=0       #ny elements
         self.L=20
-        self.natoms=0
     
     def addGrid(self,nx,ny):
         linked_list=LinkedList()
@@ -390,6 +395,9 @@ class LinkedListMat(object):
             self.natoms += 1
             xj.append(node.x)
             yj.append(node.y)
+            
+        self.vx0=node.vx
+        self.vy0=node.vy
 
     def setParameters(self,alpha,temp,dt):
         #set grid attributes of linked list
@@ -542,7 +550,7 @@ class LinkedListMat(object):
         ekv=np.sum(kev_mat)/self.natoms
         eku=np.sum(keu_mat)/self.natoms
         epn=np.sum(ulj_mat)/self.natoms
-        #print("linkMat->getAvgEnergy(): natoms={}".format(self.natoms))
+        if DBG: print("linkMat->getAvgEnergy(): natoms={}".format(self.natoms))
         return ekv,eku,epn
 
     def updateCells(self,tn):
@@ -579,15 +587,14 @@ class LinkedListMat(object):
                                 
                                 if counter>50:
                                     label="im stuck fx: {} fy: {} time-iter={} nx={} ny={}"
-                                    print(label.format(np.sum(node.fx),np.sum(node.fy),tn,new_nx,new_ny) )
+                                    print(label.format(np.sum(node.fx),
+                                                       np.sum(node.fy),
+                                                       tn,
+                                                       new_nx,new_ny) )
                                     exit()
                     
                         else:
                             node=node.next_node
-                                        
-                            #continue
-
-
 
     def printList(self):
         print("PrintList====================================")
@@ -599,54 +606,120 @@ class LinkedListMat(object):
                     node=linked_list.root
                     if node is not None:
                         listStr="LinkedList->printList() (id={})=[{},{}]=[{:.2f},{:.2f}] vx={} vy={} dt={}"
-                        print(listStr.format(node.id,node.cellx,node.celly,node.x,node.y,node.vx,node.vy,node.dt))
+                        print(listStr.format(node.id,
+                                             node.cellx,
+                                             node.celly,
+                                             node.x,
+                                             node.y,
+                                             node.vx,
+                                             node.vy,
+                                             node.dt))
 
+filename="data/celldat_{}natom_{}nsteps_vx{:.0f}_vy{:.0f}_{}ndt.root"
 def main():
-    n=1
+    natom=20
     nx=10
     ny=10
     nsteps=int(10E3)
     
-    alpha=1
-    
-    temp=10
+    alphaList=[1]
+    tempList=[10]
     
     dtstep=0.001
-    dtmax =0.1
+    dtmax =0.01
     ndt=int(dtmax/dtstep)
     
+    #save information to (root) file.
+    file=TFile(filename.format(natom,nsteps,2,3,ndt),"recreate")
+    alpha_id=array('i',[0])
+    temp_id=array('i',[0])
+    runtime=array('f',[0])
+    alpha=array('f',[0])
+    dt_id=array('i',[0])
+    temp=array('f',[0])
+    dt=array('f',[0])
+    ekvAvg=array('f',[0])
+    ekuAvg=array('f',[0])
+    epvAvg=array('f',[0])
+    epuAvg=array('f',[0])
+    
+    tree=TTree("averageEnergy", "energy analysis")
+    tree.Branch('alpha_id',alpha_id,'alpha_id/I')
+    tree.Branch('alpha',alpha,'alpha/F')
+    tree.Branch('temp_id',temp_id,'temp_id/I')
+    tree.Branch('temp',temp,'temp/F')
+    tree.Branch('dt_id',dt_id,'dt_id/I')
+    tree.Branch('dt',dt,'dt/F')
+    tree.Branch('ekvAvg',ekvAvg,'ekvAvg/F')
+    tree.Branch('ekuAvg',ekuAvg,'ekuAvg/F')
+    tree.Branch('epvAvg',epvAvg,'epvAvg/F')
+    tree.Branch('epuAvg',epuAvg,'epuAvg/F')
+    tree.Branch('runtime',runtime,'runtime/F')
+    
+    #generate grid
     linkedListMatrix=LinkedListMat()
     linkedListMatrix.addGrid(nx,ny)
     
-    for n_dt in range(0,ndt):
-        ekv_sum=0
-        eku_sum=0
-        ulj_sum=0
-        dt=(n_dt+1)*dtstep
-        linkedListMatrix.reset()
-        linkedListMatrix.printList()
-        linkedListMatrix.addAtoms(n) #autoadd to cells
-        linkedListMatrix.setParameters(alpha,temp,dt) #comes after addGrid()
-        for n_time in range(0,nsteps):
-            linkedListMatrix.updateForces(n_time)
-            linkedListMatrix.updatePositions(n_time)
-            ekv,eku,ulj=linkedListMatrix.getAvgEnergy(n_time)
-            ekv_sum+=ekv
-            eku_sum+=eku
-            ulj_sum+=ulj
-            linkedListMatrix.updateCells(n_time)
-            linkedListMatrix.clearForces()
-
-        ekvAvg=ekv_sum/nsteps
-        ekuAvg=eku_sum/nsteps
-        uljAvg=ulj_sum/nsteps
+    for n_alpha in range(0,len(alphaList)):
+        alphaTest=alphaList[n_alpha]
         
-        elaptime=time.time()-start_time
-        timelabel="time={}: "
-        label="{} ndt out of {}: ekv={:.2f} eku={:.2f} ulj={:.2f} [dt={:.3f}, alpha={:.1f}, temp={:.1f}]"
-        print((timelabel+label).format(elaptime,n_dt,ndt,
-                                     ekvAvg,ekuAvg,
-                                     uljAvg,dt,alpha,temp))
+        for n_temp in range(0,len(tempList)):
+            tempTest=tempList[n_temp]
+            
+            for n_dt in range(0,ndt):
+                ekv_sum=0
+                eku_sum=0
+                ulj_sum=0
+                dtTest=(n_dt+1)*dtstep
+                linkedListMatrix.reset()
+                linkedListMatrix.printList()
+                linkedListMatrix.addAtoms(natom) #add atoms to cells
+                linkedListMatrix.setParameters(alphaTest,tempTest,dtTest)
+                for n_time in range(0,nsteps):
+                    linkedListMatrix.updateForces(n_time)
+                    linkedListMatrix.updatePositions(n_time)
+                    ekv,eku,ulj=linkedListMatrix.getAvgEnergy(n_time)
+                    ekv_sum+=ekv
+                    eku_sum+=eku
+                    ulj_sum+=ulj
+                    linkedListMatrix.updateCells(n_time)
+                    linkedListMatrix.clearForces()
+
+                #average system energy
+                ekvAvgTest=ekv_sum/nsteps
+                ekuAvgTest=eku_sum/nsteps
+                uljAvgTest=ulj_sum/nsteps
+                
+                #save results2root
+                ekvAvg[0]=ekvAvgTest
+                ekuAvg[0]=ekuAvgTest
+                epvAvg[0]=ekvAvgTest+uljAvgTest
+                epuAvg[0]=ekuAvgTest+uljAvgTest
+                
+                alpha[0]=alphaTest
+                alpha_id[0]=0
+                temp[0]=tempTest
+                temp_id[0]=0
+                dt[0]=dtTest
+                dt_id[0]=n_dt
+                runtime[0]=float(time.time()-start_time)
+                tree.Fill()
+
+                #print results
+                timelabel="time={}: "
+                label="ndt={}/{}: ekv={:.2f} eku={:.2f} ulj={:.2f} [dt={:.3f} alpha={:.1f} temp={:.1f}]"
+                print((timelabel+label).format(runtime[0],
+                                               n_dt,ndt,
+                                               ekvAvgTest,
+                                               ekuAvgTest,
+                                               uljAvgTest,
+                                               dtTest,
+                                               alphaTest,
+                                               tempTest))
+
+            tree.Write()
+
+    file.Close()
                                      
 
 if __name__ == "__main__":
