@@ -243,7 +243,7 @@ class LinkedList(object):
 		    error=False
                 
                 if node_a.id==node_b.id:
-                    print("ForceInt: same node collision [{},{}]".format(node_a.cellx,node_b.celly))
+                    if DBG: print("ForceInt: same node collision [{},{}]".format(node_a.cellx,node_b.celly))
                     node_b=node_b.next_node
                     break
                 
@@ -263,7 +263,7 @@ class LinkedList(object):
                 if abs(fxij)>10000 or (abs(fyij)>10000):
                     node_a.iter_issue=n
                     label="High Force at time={} id_a={} id_b={} - xij={}"
-                    if 1: print(label.format(n,node_a.id,node_b.id,xij))
+                    if DBG: print(label.format(n,node_a.id,node_b.id,xij))
                     break #end time iter'''
                 
                 ulj=lj_potential(xij,yij)
@@ -485,11 +485,11 @@ class LinkedListMat(object):
         #update forces within grid
         nx=self.nx-1 #-1 correction
         ny=self.ny-1 #-1 correction
-	p=0
+        p=0
         for n_x in range(0,nx+1):
             for n_y in range(0,ny+1):
                 cell=self.pixel_root[n_x][n_y]
-                node=self.pixel_root[n_x][n_y].root
+                node=cell.root
                 cell2=None
                 cell3=None
                 cell4=None
@@ -576,11 +576,11 @@ class LinkedListMat(object):
                     done4=True
                     done5=True
                     #calculate force
-                    if cell is not None: done1,p1=cell.updateInteractionForces(cell,n)
-                    if cell2 is not None: done2,p2=cell.updateInteractionForces(cell2,n)
-                    if cell3 is not None: done3,p3=cell.updateInteractionForces(cell3,n)
-                    if cell4 is not None: done4,p4=cell.updateInteractionForces(cell4,n)
-                    if cell5 is not None: done5,p5=cell.updateInteractionForces(cell5,n)
+                    if cell is not None: err1,p1=cell.updateInteractionForces(cell,n)
+                    if cell2 is not None: err2,p2=cell.updateInteractionForces(cell2,n)
+                    if cell3 is not None: err3,p3=cell.updateInteractionForces(cell3,n)
+                    if cell4 is not None: err4,p4=cell.updateInteractionForces(cell4,n)
+                    if cell5 is not None: err5,p5=cell.updateInteractionForces(cell5,n)
 
                     if err1 is True: print("cell->cell interaction error")
                     if err2 is True: print("cell->cell2 interaction error")
@@ -588,10 +588,11 @@ class LinkedListMat(object):
                     if err4 is True: print("cell->cell4 interaction error")
                     if err5 is True: print("cell->cell5 interaction error")
 
-		    p=p+p1+p2+p3+p4+p5
+                    p=p+p1+p2+p3+p4+p5
 
-	p=p/self.natoms
-	return p
+        p=p/self.natoms
+        if DBG: print("IntForce p={} natoms={}".format(p,self.natoms))
+        return p
 
     def clearForces(self):
         for nx in range(0,self.nx):
@@ -731,11 +732,11 @@ class LinkedListMat(object):
 filename="data/celldat_{}natom_{}nsteps_vx{:.0f}_vy{:.0f}_{}ndt.root"
 def main():
     natomstep=1
-    natommax=20
+    natommax=2
 
     nx=10
     ny=10
-    nsteps=int(10E3)
+    nsteps=int(1E3)
     
     alphaList=[1]
     tempList=[10]
@@ -745,7 +746,7 @@ def main():
     ndt=int(dtmax/dtstep)
     
     #save information to (root) file.
-    file=TFile(filename.format(natom,nsteps,2,3,ndt),"recreate")
+    file=TFile(filename.format(natommax,nsteps,2,3,ndt),"recreate")
     pressure=array('f',[0])
 
     alpha_id=array('i',[0])
@@ -757,8 +758,8 @@ def main():
     dt=array('f',[0])
 
     #study variables
+    natom=array('i',[0])
     runtime=array('f',[0])
-    natom=array('f',[0])
     ekvAvg=array('f',[0])
     ekuAvg=array('f',[0])
     epvAvg=array('f',[0])
@@ -777,7 +778,8 @@ def main():
     tree.Branch('epvAvg',epvAvg,'epvAvg/F')
     tree.Branch('epuAvg',epuAvg,'epuAvg/F')
     tree.Branch('runtime',runtime,'runtime/F')
-    
+    tree.Branch('natom',natom,'natom/I')
+
     #generate grid
     linkedListMatrix=LinkedListMat()
     linkedListMatrix.addGrid(nx,ny)
@@ -788,74 +790,71 @@ def main():
         for n_temp in range(0,len(tempList)):
             temp[0]=tempList[n_temp]
             
-	    for n_atom in range(0,natommax)
-		natom[0]=(n_atom+1)*natomstep
-
-            for n_dt in range(0,10):
-		dt[0]=(n_dt+1)*dtstep
-
-	    for n_rep in range(0,10):
-                ekv_sum=0
-                eku_sum=0
-                ulj_sum=0
-		p_sum=0
-
-                linkedListMatrix.reset()
-                linkedListMatrix.addAtoms(natom[0])
-                linkedListMatrix.setParameters(alpha[0],temp[0],dt[0])
-
-                for n_time in range(0,nsteps):
-                    p_sum+=linkedListMatrix.updateForces(n_time)
-                    linkedListMatrix.updatePositions(n_time)
-                    ekv,eku,ulj=linkedListMatrix.getAvgEnergy(n_time)
-                    ekv_sum+=ekv
-                    eku_sum+=eku
-                    ulj_sum+=ulj
-                    linkedListMatrix.clearForces()
-                    linkedListMatrix.updateCells(n_time)
-
-                linkedListMatrix.printList()
-                #average system energy
-                ekvAvgTest=ekv_sum/nsteps
-                ekuAvgTest=eku_sum/nsteps
-                uljAvgTest=ulj_sum/nsteps
-                pavgTest=p_sum/nsteps
-
-                #save results2root
-		pressure[0]=pavgTest
-
-                ekvAvg[0]=ekvAvgTest
-                ekuAvg[0]=ekuAvgTest
-                epvAvg[0]=ekvAvgTest+uljAvgTest
-                epuAvg[0]=ekuAvgTest+uljAvgTest
+            for n_atom in range(0,natommax):
+                natom[0]=(n_atom+1)*natomstep
                 
-                #alpha[0]=alphaTest
-                alpha_id[0]=0
+                for n_dt in range(0,1):
+                    dt[0]=(1)*dtstep #n_dt+
 
-                #temp[0]=tempTest
-                temp_id[0]=0
+                    for n_rep in range(0,10):
+                        ekv_sum=0
+                        eku_sum=0
+                        ulj_sum=0
+                        p_sum=0
 
-                dt[0]=dtTest
-                dt_id[0]=n_dt
+                        linkedListMatrix.reset()
+                        linkedListMatrix.addAtoms(natom[0])
+                        linkedListMatrix.setParameters(alpha[0],temp[0],dt[0])
 
-                runtime[0]=float(time.time()-start_time)
-                tree.Fill()
+                        for n_time in range(0,nsteps):
+                            p_sum+=linkedListMatrix.updateForces(n_time)
+                            linkedListMatrix.updatePositions(n_time)
+                            ekv,eku,ulj=linkedListMatrix.getAvgEnergy(n_time)
+                            ekv_sum+=ekv
+                            eku_sum+=eku
+                            ulj_sum+=ulj
+                            linkedListMatrix.clearForces()
+                            linkedListMatrix.updateCells(n_time)
 
-                #print results
-                timelabel="time={}: "
-                label="ndt={}/{}: p={:.1f} ekv={:.2f} eku={:.2f} ulj={:.2f} [dt={:.3f} alpha={:.1f} temp={:.1f}]"
-                print((timelabel+label).format(runtime[0],
-                                               n_dt,ndt,
-					       pavgTest,
-                                               ekvAvgTest,
-                                               ekuAvgTest,
-                                               uljAvgTest,
-                                               dtTest,
-                                               alphaTest,
-                                               tempTest))
+                        #average system energy
+                        ekvAvgTest=ekv_sum/nsteps
+                        ekuAvgTest=eku_sum/nsteps
+                        uljAvgTest=ulj_sum/nsteps
+                        pavgTest=p_sum/nsteps
 
-	    #write
-            tree.Write()
+                        #save results2root
+                        pressure[0]=pavgTest
+                        ekvAvg[0]=ekvAvgTest
+                        ekuAvg[0]=ekuAvgTest
+                        epvAvg[0]=ekvAvgTest+uljAvgTest
+                        epuAvg[0]=ekuAvgTest+uljAvgTest
+                        
+                        #id info
+                        alpha_id[0]=0
+                        temp_id[0]=0
+                        dt_id[0]=n_dt
+
+                        runtime[0]=float(time.time()-start_time)
+                        tree.Fill()
+
+                        #print results
+                        timelabel1="time={} natom={} "
+                        label1="dt={}: p={:.1f} ekv={:.2f} eku={:.2f} ulj={:.2f} "
+                        label2="[alpha={:.1f} temp={:.1f}]"
+                        print((timelabel1+label1+label2).format(runtime[0],
+                                                                natom[0],
+                                                                dt[0],
+                                                                pressure[0],
+                                                                ekvAvgTest,
+                                                                ekuAvgTest,
+                                                                uljAvgTest,
+                                                                alpha[0],
+                                                                temp[0]))
+                                                                
+                        linkedListMatrix.printList()
+                        
+                        #write
+                        tree.Write()
 
     file.Close()
                                      
