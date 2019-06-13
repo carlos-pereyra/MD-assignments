@@ -857,8 +857,8 @@ def main():
                                                                 
                         #linkedListMatrix.printList()
                         
-                        #write
-                        tree.Write()
+                    #write
+                    tree.Write()
 
     file.Close()
                                      
