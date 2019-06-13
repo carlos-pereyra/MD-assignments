@@ -731,14 +731,14 @@ class LinkedListMat(object):
 
 filename="data/celldat_{}natom_{}nsteps_vx{:.0f}_vy{:.0f}_{}ndt.root"
 def main():
-    nrep=10
+    nrep=20
 
     natomstep=1
-    natommax=10
+    natommax=20
 
     nx=10
     ny=10
-    nsteps=int(10E3)
+    nsteps=int(1E2)
     
     alphaList=[1]
     tempList=[10]
