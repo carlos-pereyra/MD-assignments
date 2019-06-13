@@ -749,7 +749,8 @@ def main():
     
     #save information to (root) file.
     file=TFile(filename.format(natommax,nsteps,2,3,ndt),"recreate")
-    pressure=array('f',[0])
+    nreps=array('i',[nrep])
+    pressure=array('f',[0]*nreps[0])
 
     alpha_id=array('i',[0])
     temp_id=array('i',[0])
@@ -759,15 +760,13 @@ def main():
     temp=array('f',[0])
     dt=array('f',[0])
 
-    nreps=array('i',[nrep])
-
     #study variables
-    natom=array('i',[0])
-    runtime=array('f',[0])
-    ekvAvg=array('f',[0])
-    ekuAvg=array('f',[0])
-    epvAvg=array('f',[0])
-    epuAvg=array('f',[0])
+    natom=array('i',[0]*nreps[0])
+    runtime=array('f',[0]*nreps[0])
+    ekvAvg=array('f',[0]*nreps[0])
+    ekuAvg=array('f',[0]*nreps[0])
+    epvAvg=array('f',[0]*nreps[0])
+    epuAvg=array('f',[0]*nreps[0])
     
     tree=TTree("averageEnergy", "energy analysis")
     tree.Branch('nreps',nreps,'nreps/I')
@@ -782,7 +781,7 @@ def main():
     tree.Branch('ekuAvg',ekuAvg,'ekuAvg[nreps]/F')
     tree.Branch('epvAvg',epvAvg,'epvAvg[nreps]/F')
     tree.Branch('epuAvg',epuAvg,'epuAvg[nreps]/F')
-    tree.Branch('runtime',runtime,'runtime/F')
+    tree.Branch('runtime',runtime,'runtime[nreps]/F')
     tree.Branch('natom',natom,'natom[nreps]/I')
 
     #generate grid
@@ -805,9 +804,10 @@ def main():
                         eku_sum=0
                         ulj_sum=0
                         p_sum=0
+                        natom[n_rep]=(n_atom+1)*natomstep
 
                         linkedListMatrix.reset()
-                        linkedListMatrix.addAtoms(natom[0])
+                        linkedListMatrix.addAtoms(natom[n_rep])
                         linkedListMatrix.setParameters(alpha[0],temp[0],dt[0])
 
                         for n_time in range(0,nsteps):
@@ -832,7 +832,6 @@ def main():
                         ekuAvg[n_rep]=ekuAvgTest
                         epvAvg[n_rep]=ekvAvgTest+uljAvgTest
                         epuAvg[n_rep]=ekuAvgTest+uljAvgTest
-                	natom[n_rep]=(n_atom+1)*natomstep
                         
                         #id info
                         alpha_id[0]=0
@@ -843,20 +842,20 @@ def main():
                         tree.Fill()
 
                         #print results
-                        timelabel1="time={} natom={} "
-                        label1="dt={}: p={:.1f} ekv={:.2f} eku={:.2f} ulj={:.2f} "
+                        timelabel1="time={:.2f} natom={} "
+                        label1="dt={:.3f}: p={:.1f} ekv={:.2f} eku={:.2f} ulj={:.2f} "
                         label2="[alpha={:.1f} temp={:.1f}]"
                         print((timelabel1+label1+label2).format(runtime[0],
-                                                                natom[0],
+                                                                natom[n_rep],
                                                                 dt[0],
-                                                                pressure[0],
-                                                                ekvAvgTest,
-                                                                ekuAvgTest,
-                                                                uljAvgTest,
+                                                                pressure[n_rep],
+                                                                ekvAvg[n_rep],
+                                                                ekuAvg[n_rep],
+                                                                epuAvg[n_rep],
                                                                 alpha[0],
                                                                 temp[0]))
                                                                 
-                        linkedListMatrix.printList()
+                        #linkedListMatrix.printList()
                         
                         #write
                         tree.Write()
