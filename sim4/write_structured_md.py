@@ -13,7 +13,6 @@ import os
 from datetime import datetime
 from array import array
 import time
-start_time=time.time()
 
 DBG=0
 DBG2=0
@@ -731,35 +730,29 @@ class LinkedListMat(object):
 
 filename="data/celldat_{}natom_{}nsteps_vx{:.0f}_vy{:.0f}_{}ndt.root"
 def main():
-    nrep=20
-
+    #control variables - eventually feed through commandline args -cp
+    nrep=1
     natomstep=1
-    natommax=20
-
+    natommax=30
     nx=10
     ny=10
-    nsteps=int(1E2)
-    
+    nsteps=int(5E3)
     alphaList=[1]
     tempList=[10]
-    
     dtstep=0.001
     dtmax =0.01
     ndt=int(dtmax/dtstep)
     
-    #save information to (root) file.
+    #general variables
     file=TFile(filename.format(natommax,nsteps,2,3,ndt),"recreate")
     nreps=array('i',[nrep])
     pressure=array('f',[0]*nreps[0])
-
     alpha_id=array('i',[0])
     temp_id=array('i',[0])
     dt_id=array('i',[0])
-
     alpha=array('f',[0])
     temp=array('f',[0])
     dt=array('f',[0])
-
     #study variables
     natom=array('i',[0]*nreps[0])
     runtime=array('f',[0]*nreps[0])
@@ -795,7 +788,8 @@ def main():
             temp[0]=tempList[n_temp]
             
             for n_atom in range(0,natommax):
-                
+                start_time=time.time()
+
                 for n_dt in range(0,1):
                     dt[0]=(1)*dtstep #n_dt+
 

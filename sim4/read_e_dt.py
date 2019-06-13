@@ -64,7 +64,7 @@ pad1.cd()
 
 tree.SetLineColor(1)
 tree.SetTitle('normalized values')
-tree.Draw("Sum$(ekvAvg)/Length$(ekvAvg):Sum$(natom)/(Length$*10)","","")
+tree.Draw("Sum$(ekvAvg)/Length$(ekvAvg):Sum$(natom)/Length$(natom)","","")
 g0=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
 g0.SetName("g0")
 #g0.SetTitle("Potential-Spline Diagram")
@@ -92,7 +92,7 @@ g1.SetLineWidth(2)
 g1.SetLineColor(2)
 g1.SetLineStyle(2);
 g1.SetName("g1")
-g1.Draw("L")
+#g1.Draw("L")
 #legend1.AddEntry("g1","<ek_{u}>","l")
 
 tree.Draw("epvAvg:dt","","same")
@@ -103,7 +103,7 @@ g2.SetLineWidth(2)
 g2.SetLineColor(1)
 g2.SetLineStyle(1);
 g2.SetName("g2")
-g2.Draw("L")
+#g2.Draw("L")
 #legend1.AddEntry("g2","<ep_{v}>","l")
 
 tree.Draw("epuAvg:dt","","same")
@@ -114,7 +114,7 @@ g3.SetLineWidth(2)
 g3.SetLineColor(1)
 g3.SetLineStyle(1);
 g3.SetName("g3")
-g3.Draw("L")
+#g3.Draw("L")
 #legend1.AddEntry("g3","<ep_{u}>","l")
 
 #legend1.Draw()

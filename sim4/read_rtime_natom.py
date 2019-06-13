@@ -21,13 +21,13 @@ from ROOT import TPaveText,TStyle,TMultiGraph,TGraphErrors
 file=TFile("{}".format(sys.argv[1]), "read")
 tree=file.Get("averageEnergy")
 #tree.Scan("Sum$(pressure)/Length$(pressure):Sum$(natom)/Length$(natom)","","colsize=25")
-tree.Scan("pressure:natom","","colsize=25")
+tree.Scan("runtime:natom","","colsize=25")
 tree.GetEntry()
 
 '''========================
     Canvas 1
     ==========================='''
-c1=TCanvas("c", "canvas 1", 600, 800)
+c1=TCanvas("c", "canvas 1", 600, 600)
 c1.GetFrame().SetBorderMode(0);
 c1.GetFrame().SetBorderMode(0);
 c1.GetFrame().SetBorderSize(0);
@@ -64,7 +64,7 @@ pad1.cd()
 
 tree.SetLineColor(1)
 tree.SetTitle('normalized values')
-tree.Draw("Sum$(pressure)/Length$(pressure):Sum$(natom)/Length$(pressure)","","")
+tree.Draw("runtime:natom","","")
 g0=TGraphErrors(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
 g0.SetName("g0")
 #g0.SetTitle("Potential-Spline Diagram")
@@ -74,7 +74,7 @@ g0.SetLineWidth(2)
 g0.SetLineColor(1)
 g0.SetLineStyle(1);
 g0.GetXaxis().SetTitle('Natoms')
-g0.GetYaxis().SetTitle('Pressure')
+g0.GetYaxis().SetTitle('Elapsed Runtime')
 g0.GetXaxis().SetTitleSize(0.06)
 g0.GetYaxis().SetTitleSize(0.06)
 #g0.GetXaxis().SetLimits(0.6,2)
