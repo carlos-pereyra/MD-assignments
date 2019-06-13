@@ -5,7 +5,7 @@
 ============================================================ """
 
 print("read_p_natom.py")
-
+DBG=0
 nlines=5
 dt_id=0
 ylimit=10
@@ -21,7 +21,7 @@ from ROOT import TPaveText,TStyle,TMultiGraph,TGraphErrors
 file=TFile("{}".format(sys.argv[1]), "read")
 tree=file.Get("averageEnergy")
 #tree.Scan("Sum$(pressure)/Length$(pressure):Sum$(natom)/Length$(natom)","","colsize=25")
-tree.Scan("runtime:natom","","colsize=25")
+if DBG: tree.Scan("runtime:natom","","colsize=25")
 tree.GetEntry()
 
 '''========================

@@ -1,9 +1,11 @@
 """
 *  author: carlos p
 *  purpose: solve n-particle verlet
+*  usage: python write_structured_md.py <natoms> <nsteps>
 *
 """
 
+import sys
 import ROOT
 from ROOT import TTree,TFile,gROOT
 from ROOT import TCanvas,TGraph,TPad,TBrowser
@@ -733,14 +735,14 @@ def main():
     #control variables - eventually feed through commandline args -cp
     nrep=1
     natomstep=1
-    natommax=30
+    natommax=int(sys.argv[1]) #30
     nx=10
     ny=10
-    nsteps=int(5E3)
+    nsteps=int(sys.argv[2])
     alphaList=[1]
     tempList=[10]
     dtstep=0.001
-    dtmax =0.01
+    dtmax =0.001
     ndt=int(dtmax/dtstep)
     
     #general variables

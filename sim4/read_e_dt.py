@@ -5,7 +5,7 @@
 ============================================================ """
 
 print("read_e_dt.py")
-
+DBG=0
 nlines=5
 dt_id=0
 ylimit=10
@@ -21,7 +21,7 @@ from ROOT import TPaveText,TStyle,TMultiGraph
 file=TFile("{}".format(sys.argv[1]), "read")
 #file=TFile("data/potential_e_r.root", "read")
 tree=file.Get("averageEnergy")
-tree.Scan("ekvAvg:dt","","colsize=20")
+if DBG: tree.Scan("ekvAvg:dt","","colsize=20")
 tree.GetEntry()
 
 '''========================
@@ -39,7 +39,7 @@ c1.SetTopMargin(0.10)
 #legend.SetTextSize(0.04)
 c1.cd()
 
-pad1=TPad("pad1","potential energy",0,0.2,0.99,0.99);
+pad1=TPad("pad1","potential energy",0,0.06,0.99,0.99);
 pad1.SetLeftMargin(0.15)
 pad1.SetRightMargin(0.1)
 pad1.SetBottomMargin(0.15)
@@ -47,7 +47,7 @@ pad1.SetTopMargin(0.1)
 pad1.Draw()
 legend1 = TLegend(0.5, 0.70, .95, 0.87)
 
-pad2=TPad("pad2","force",0.0,0.0,0.99,0.19)
+pad2=TPad("pad2","force",0.0,0.0,0.99,0.05)
 pad2.SetLeftMargin(0.15)
 pad2.SetRightMargin(0.1)
 pad2.SetBottomMargin(0.15)
