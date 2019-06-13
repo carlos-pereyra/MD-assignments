@@ -72,6 +72,7 @@ class Node(object):
         self.celly=0
         self.fx=[]
         self.fy=[]
+        self.p=[]
         self.ulj=[]
         self.r=[]
         self.vx=vx
@@ -213,74 +214,90 @@ class LinkedList(object):
         list_b=linked_list_b
         label="Collision: (id={})=[{},{}] (id={})=[{},{}] r={} fx={:.2f} fy={:.2f}"
         same_node=False
-        #empty stored node forces
         countera=0
+
+	#return values
+	error=False
+	p=0
         while node_a!=None:
-            if countera>50:
-                print("updateInteraction a iter={} next={} node_a={} prev={} next_x={}".format(n,
-                                                                                       node_a.next_node,
-                                                                                       node_a,
-                                                                                       node_a.prev_node,
-                                                                                       node_a.next_node.x))
-                return False
-                #exit()
+            if countera>50 or error==True:
+                label="Linked()..Error: ForceInter a idx={} nodes[prev-{} cur-{} next-{} nextX={}"
+                print(label.format(n,node_a.prev_node,node_a,node_a.next_node,node_a.next_node.x))
+
+                error=True
+		break
+
+	    else:
+		error=False
             
             countera+=1
             counterb=0
             while node_b!=None:
                 if counterb>50:
-                    print("updateInteraction b iter={} next={} nodeb prev={} next_x={}".format(n,
-                                                                                               node_a.next_node,
-                                                                                               node_a,
-                                                                                               node_a.prev_node,
-                                                                                               node_b.next_node.x))
-                    return False
-                    #exit()
-                    
-                counterb+=1
+                    label="Linked()..Error: ForceInter b idx={} nodes[prev={} cur={} next={}->x={}"
+                    print(label.format(n,node_b.prev_node,node_b,node_b.next_node,node_b.next_node.x))
+                    error=True
+		    break
+
+		else:
+		    error=False
                 
-                if node_a.id is node_b.id and node_a is not 0:
-                    #print("same cell collision [{},{}]".format(node_a.cellx,node_b.celly))
-                    same_node=True
+                if node_a.id==node_b.id:
+                    print("ForceInt: same node collision [{},{}]".format(node_a.cellx,node_b.celly))
                     node_b=node_b.next_node
                     break
-                    #continue
                 
                 xij=node_a.x-node_b.x
                 yij=node_a.y-node_b.y
-                
                 if xij>0.5*self.L:   xij-=self.L
                 if xij<=-0.5*self.L: xij+=self.L
                 if yij>0.5*self.L:   yij-=self.L
                 if yij<=-0.5*self.L: yij+=self.L
-                
-                fx,fy,r=lj_force(xij,yij)
-                
-                if abs(fx)>2000 or (abs(fy)>2000):
+                xji=-xij
+                yji=-yij
+
+                fxij,fyij,r=lj_force(xij,yij)
+                fxji=-fxij
+                fyji=-fyij
+
+                if abs(fxij)>10000 or (abs(fyij)>10000):
                     node_a.iter_issue=n
                     label="High Force at time={} id_a={} id_b={} - xij={}"
                     if 1: print(label.format(n,node_a.id,node_b.id,xij))
                     break #end time iter'''
                 
                 ulj=lj_potential(xij,yij)
-                if r<1.54 and (fx!=0 or fy!=0) and 1:
+                if r<1.54 and (fxij!=0 or fyij!=0) and 1:
                     if DBG2: print("====================================================")
                     if DBG2: print(label.format(node_a.id,self.nx,self.ny
                                        ,node_b.id,list_b.nx,list_b.ny,r,fx,fy))
                 
-                node_a.fx.append(fx)
-                node_a.fy.append(fy)
+                node_a.fx.append(fxij)
+                node_a.fy.append(fyij)
                 node_a.ulj.append(ulj)
-                node_b.fx.append(-fx)
-                node_b.fy.append(-fy)
+                node_b.fx.append(fxji)
+                node_b.fy.append(fyji)
                 node_b.ulj.append(ulj)
                 node_a.r.append(r)
-                
+
+                #pressure algorithm
+                pij=0.5*(xij*fxij + yij*fyij)
+                pji=0.5*(xji*fxji + yji*fyji)
+		p+=pij                
+
+                node_a.p.append(pij)
+                node_b.p.append(pji)
+
+		#next iteration setup
+		counterb+=1
                 node_b=node_b.next_node
                 if node_b is None:
                     break
 
+	    #next iteration setup
             node_a=node_a.next_node
+
+	return error,p
 
     def clearNodeForces(self):
         node_a=self.root #linked list root
@@ -289,6 +306,7 @@ class LinkedList(object):
             #print("clear force id: {} - force: {}".format(node_a.id,node_a.fx))
             del node_a.fx[:]
             del node_a.fy[:]
+            del node_a.p[:] #clear pressure contribution also
             del node_a.ulj[:] #clear potentials also
             node_a=node_a.next_node
             counter+=1
@@ -467,6 +485,7 @@ class LinkedListMat(object):
         #update forces within grid
         nx=self.nx-1 #-1 correction
         ny=self.ny-1 #-1 correction
+	p=0
         for n_x in range(0,nx+1):
             for n_y in range(0,ny+1):
                 cell=self.pixel_root[n_x][n_y]
@@ -557,26 +576,22 @@ class LinkedListMat(object):
                     done4=True
                     done5=True
                     #calculate force
-                    if cell is not None: done1=cell.updateInteractionForces(cell,n)
-                    if cell2 is not None: done2=cell.updateInteractionForces(cell2,n)
-                    if cell3 is not None: done3=cell.updateInteractionForces(cell3,n)
-                    if cell4 is not None: done4=cell.updateInteractionForces(cell4,n)
-                    if cell5 is not None: done5=cell.updateInteractionForces(cell5,n)
+                    if cell is not None: done1,p1=cell.updateInteractionForces(cell,n)
+                    if cell2 is not None: done2,p2=cell.updateInteractionForces(cell2,n)
+                    if cell3 is not None: done3,p3=cell.updateInteractionForces(cell3,n)
+                    if cell4 is not None: done4,p4=cell.updateInteractionForces(cell4,n)
+                    if cell5 is not None: done5,p5=cell.updateInteractionForces(cell5,n)
 
-                    if done1 is False:
-                        print("cell->cell interaction error")
-                    
-                    if done2 is False:
-                        print("cell->cell2 interaction error")
-                    
-                    if done3 is False:
-                        print("cell->cell3 interaction error")
-                    
-                    if done4 is False:
-                        print("cell->cell4 interaction error")
-                    
-                    if done5 is False:
-                        print("cell->cell5 interaction error")
+                    if err1 is True: print("cell->cell interaction error")
+                    if err2 is True: print("cell->cell2 interaction error")
+                    if err3 is True: print("cell->cell3 interaction error")
+                    if err4 is True: print("cell->cell4 interaction error")
+                    if err5 is True: print("cell->cell5 interaction error")
+
+		    p=p+p1+p2+p3+p4+p5
+
+	p=p/self.natoms
+	return p
 
     def clearForces(self):
         for nx in range(0,self.nx):
@@ -715,10 +730,12 @@ class LinkedListMat(object):
 
 filename="data/celldat_{}natom_{}nsteps_vx{:.0f}_vy{:.0f}_{}ndt.root"
 def main():
-    natom=10
+    natomstep=1
+    natommax=20
+
     nx=10
     ny=10
-    nsteps=int(1E3)
+    nsteps=int(10E3)
     
     alphaList=[1]
     tempList=[10]
@@ -729,19 +746,26 @@ def main():
     
     #save information to (root) file.
     file=TFile(filename.format(natom,nsteps,2,3,ndt),"recreate")
+    pressure=array('f',[0])
+
     alpha_id=array('i',[0])
     temp_id=array('i',[0])
-    runtime=array('f',[0])
-    alpha=array('f',[0])
     dt_id=array('i',[0])
+
+    alpha=array('f',[0])
     temp=array('f',[0])
     dt=array('f',[0])
+
+    #study variables
+    runtime=array('f',[0])
+    natom=array('f',[0])
     ekvAvg=array('f',[0])
     ekuAvg=array('f',[0])
     epvAvg=array('f',[0])
     epuAvg=array('f',[0])
     
     tree=TTree("averageEnergy", "energy analysis")
+    tree.Branch('pressure',pressure,'pressure/F')
     tree.Branch('alpha_id',alpha_id,'alpha_id/I')
     tree.Branch('alpha',alpha,'alpha/F')
     tree.Branch('temp_id',temp_id,'temp_id/I')
@@ -759,22 +783,29 @@ def main():
     linkedListMatrix.addGrid(nx,ny)
     
     for n_alpha in range(0,len(alphaList)):
-        alphaTest=alphaList[n_alpha]
+        alpha[0]=alphaList[n_alpha]
         
         for n_temp in range(0,len(tempList)):
-            tempTest=tempList[n_temp]
+            temp[0]=tempList[n_temp]
             
+	    for n_atom in range(0,natommax)
+		natom[0]=(n_atom+1)*natomstep
+
             for n_dt in range(0,10):
+		dt[0]=(n_dt+1)*dtstep
+
+	    for n_rep in range(0,10):
                 ekv_sum=0
                 eku_sum=0
                 ulj_sum=0
-                dtTest=(1)*dtstep #n_dt+
+		p_sum=0
+
                 linkedListMatrix.reset()
-                #linkedListMatrix.addGrid(nx,ny)
-                linkedListMatrix.addAtoms(natom) #add atoms to cells
-                linkedListMatrix.setParameters(alphaTest,tempTest,dtTest)
+                linkedListMatrix.addAtoms(natom[0])
+                linkedListMatrix.setParameters(alpha[0],temp[0],dt[0])
+
                 for n_time in range(0,nsteps):
-                    linkedListMatrix.updateForces(n_time)
+                    p_sum+=linkedListMatrix.updateForces(n_time)
                     linkedListMatrix.updatePositions(n_time)
                     ekv,eku,ulj=linkedListMatrix.getAvgEnergy(n_time)
                     ekv_sum+=ekv
@@ -788,27 +819,34 @@ def main():
                 ekvAvgTest=ekv_sum/nsteps
                 ekuAvgTest=eku_sum/nsteps
                 uljAvgTest=ulj_sum/nsteps
-                
+                pavgTest=p_sum/nsteps
+
                 #save results2root
+		pressure[0]=pavgTest
+
                 ekvAvg[0]=ekvAvgTest
                 ekuAvg[0]=ekuAvgTest
                 epvAvg[0]=ekvAvgTest+uljAvgTest
                 epuAvg[0]=ekuAvgTest+uljAvgTest
                 
-                alpha[0]=alphaTest
+                #alpha[0]=alphaTest
                 alpha_id[0]=0
-                temp[0]=tempTest
+
+                #temp[0]=tempTest
                 temp_id[0]=0
+
                 dt[0]=dtTest
                 dt_id[0]=n_dt
+
                 runtime[0]=float(time.time()-start_time)
                 tree.Fill()
 
                 #print results
                 timelabel="time={}: "
-                label="ndt={}/{}: ekv={:.2f} eku={:.2f} ulj={:.2f} [dt={:.3f} alpha={:.1f} temp={:.1f}]"
+                label="ndt={}/{}: p={:.1f} ekv={:.2f} eku={:.2f} ulj={:.2f} [dt={:.3f} alpha={:.1f} temp={:.1f}]"
                 print((timelabel+label).format(runtime[0],
                                                n_dt,ndt,
+					       pavgTest,
                                                ekvAvgTest,
                                                ekuAvgTest,
                                                uljAvgTest,
@@ -816,6 +854,7 @@ def main():
                                                alphaTest,
                                                tempTest))
 
+	    #write
             tree.Write()
 
     file.Close()

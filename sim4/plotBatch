@@ -1,1 +1,2 @@
-python read_u_f_r.py data/potential_e_r.root
+python read_e_dt.py data/celldat_20natom_10000nsteps_vx2_vy3_10ndt.root
+#python read_u_f_r.py data/potential_e_r.root
