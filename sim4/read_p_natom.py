@@ -4,7 +4,7 @@
 *
 ============================================================ """
 
-print("read_e_dt.py")
+print("read_p_natom.py")
 
 nlines=5
 dt_id=0
@@ -16,12 +16,12 @@ import ROOT
 from ROOT import TTree,TFile,gROOT,gStyle,gPad
 from ROOT import TCanvas,TGraph,TPad,TBrowser
 from ROOT import TLegend,kAurora,kRainBow,kRust,kFall
-from ROOT import TPaveText,TStyle,TMultiGraph
+from ROOT import TPaveText,TStyle,TMultiGraph,TGraphErrors
 
 file=TFile("{}".format(sys.argv[1]), "read")
-#file=TFile("data/potential_e_r.root", "read")
 tree=file.Get("averageEnergy")
-tree.Scan("ekvAvg:dt","","colsize=20")
+#tree.Scan("Sum$(pressure)/Length$(pressure):Sum$(natom)/Length$(natom)","","colsize=25")
+tree.Scan("pressure:natom","","colsize=25")
 tree.GetEntry()
 
 '''========================
@@ -64,8 +64,8 @@ pad1.cd()
 
 tree.SetLineColor(1)
 tree.SetTitle('normalized values')
-tree.Draw("Sum$(ekvAvg)/Length$(ekvAvg):Sum$(natom)/(Length$*10)","","")
-g0=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
+tree.Draw("Sum$(pressure)/Length$(pressure):Sum$(natom)/Length$(pressure)","","")
+g0=TGraphErrors(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
 g0.SetName("g0")
 #g0.SetTitle("Potential-Spline Diagram")
 g0.SetMarkerStyle(2)
@@ -74,16 +74,19 @@ g0.SetLineWidth(2)
 g0.SetLineColor(1)
 g0.SetLineStyle(1);
 g0.GetXaxis().SetTitle('Natoms')
-g0.GetYaxis().SetTitle('Energy')
+g0.GetYaxis().SetTitle('Pressure')
 g0.GetXaxis().SetTitleSize(0.06)
 g0.GetYaxis().SetTitleSize(0.06)
 #g0.GetXaxis().SetLimits(0.6,2)
-g0.GetYaxis().SetLimits(-10,10)
-g0.Draw("LAP")
-#legend1.AddEntry("g0","<ek_{v}>","lp")
+#g0.GetYaxis().SetLimits(-10,10)
+g0.Draw("ALP")
+#legend1.AddEntry("g0","Try","lp")
+#legend1.Draw()
+
 #pt.AddText("#frac{2s}{#pi#alpha^{2}} ")
 #pt.AddText("#vx_{0}=%d, vy_{0}=%d ")
 
+'''
 tree.Draw("ekuAvg:dt","","same")
 g1=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
 g1.GetXaxis().SetLimits(0.6,2)
@@ -93,7 +96,7 @@ g1.SetLineColor(2)
 g1.SetLineStyle(2);
 g1.SetName("g1")
 g1.Draw("L")
-#legend1.AddEntry("g1","<ek_{u}>","l")
+legend1.AddEntry("g1","<ek_{u}>","l")
 
 tree.Draw("epvAvg:dt","","same")
 g2=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
@@ -104,7 +107,7 @@ g2.SetLineColor(1)
 g2.SetLineStyle(1);
 g2.SetName("g2")
 g2.Draw("L")
-#legend1.AddEntry("g2","<ep_{v}>","l")
+legend1.AddEntry("g2","<ep_{v}>","l")
 
 tree.Draw("epuAvg:dt","","same")
 g3=TGraph(tree.GetSelectedRows(),tree.GetV2(),tree.GetV1())
@@ -115,12 +118,14 @@ g3.SetLineColor(1)
 g3.SetLineStyle(1);
 g3.SetName("g3")
 g3.Draw("L")
-#legend1.AddEntry("g3","<ep_{u}>","l")
+legend1.AddEntry("g3","<ep_{u}>","l")
 
-#legend1.Draw()
+legend1.Draw()'''
+
 '''========================
     Pad 2
     ==========================='''
+
 '''
 pad2.cd()
 
