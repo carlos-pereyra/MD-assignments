@@ -731,12 +731,14 @@ class LinkedListMat(object):
 
 filename="data/celldat_{}natom_{}nsteps_vx{:.0f}_vy{:.0f}_{}ndt.root"
 def main():
+    nrep=10
+
     natomstep=1
-    natommax=2
+    natommax=10
 
     nx=10
     ny=10
-    nsteps=int(1E3)
+    nsteps=int(10E3)
     
     alphaList=[1]
     tempList=[10]
@@ -757,6 +759,8 @@ def main():
     temp=array('f',[0])
     dt=array('f',[0])
 
+    nreps=array('i',[nrep])
+
     #study variables
     natom=array('i',[0])
     runtime=array('f',[0])
@@ -766,19 +770,20 @@ def main():
     epuAvg=array('f',[0])
     
     tree=TTree("averageEnergy", "energy analysis")
-    tree.Branch('pressure',pressure,'pressure/F')
+    tree.Branch('nreps',nreps,'nreps/I')
+    tree.Branch('pressure',pressure,'pressure[nreps]/F')
     tree.Branch('alpha_id',alpha_id,'alpha_id/I')
     tree.Branch('alpha',alpha,'alpha/F')
     tree.Branch('temp_id',temp_id,'temp_id/I')
     tree.Branch('temp',temp,'temp/F')
     tree.Branch('dt_id',dt_id,'dt_id/I')
     tree.Branch('dt',dt,'dt/F')
-    tree.Branch('ekvAvg',ekvAvg,'ekvAvg/F')
-    tree.Branch('ekuAvg',ekuAvg,'ekuAvg/F')
-    tree.Branch('epvAvg',epvAvg,'epvAvg/F')
-    tree.Branch('epuAvg',epuAvg,'epuAvg/F')
+    tree.Branch('ekvAvg',ekvAvg,'ekvAvg[nreps]/F')
+    tree.Branch('ekuAvg',ekuAvg,'ekuAvg[nreps]/F')
+    tree.Branch('epvAvg',epvAvg,'epvAvg[nreps]/F')
+    tree.Branch('epuAvg',epuAvg,'epuAvg[nreps]/F')
     tree.Branch('runtime',runtime,'runtime/F')
-    tree.Branch('natom',natom,'natom/I')
+    tree.Branch('natom',natom,'natom[nreps]/I')
 
     #generate grid
     linkedListMatrix=LinkedListMat()
@@ -791,12 +796,11 @@ def main():
             temp[0]=tempList[n_temp]
             
             for n_atom in range(0,natommax):
-                natom[0]=(n_atom+1)*natomstep
                 
                 for n_dt in range(0,1):
                     dt[0]=(1)*dtstep #n_dt+
 
-                    for n_rep in range(0,10):
+                    for n_rep in range(0,nreps[0]):
                         ekv_sum=0
                         eku_sum=0
                         ulj_sum=0
@@ -823,11 +827,12 @@ def main():
                         pavgTest=p_sum/nsteps
 
                         #save results2root
-                        pressure[0]=pavgTest
-                        ekvAvg[0]=ekvAvgTest
-                        ekuAvg[0]=ekuAvgTest
-                        epvAvg[0]=ekvAvgTest+uljAvgTest
-                        epuAvg[0]=ekuAvgTest+uljAvgTest
+                        pressure[n_rep]=pavgTest
+                        ekvAvg[n_rep]=ekvAvgTest
+                        ekuAvg[n_rep]=ekuAvgTest
+                        epvAvg[n_rep]=ekvAvgTest+uljAvgTest
+                        epuAvg[n_rep]=ekuAvgTest+uljAvgTest
+                	natom[n_rep]=(n_atom+1)*natomstep
                         
                         #id info
                         alpha_id[0]=0
